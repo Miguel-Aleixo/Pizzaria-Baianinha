@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Star, Clock, MapPin, Lock } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Star, Clock, MapPin, Lock, Pizza } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { cn } from "@/lib/utils";
 
