@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Star, Clock, MapPin, Pizza } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Star, Clock, MapPin, Lock } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,7 @@ export default function Home() {
   useEffect(() => {
     const fetchMenu = async () => {
       try {
-        const res = await fetch("https://pizzaria-baianinha.onrender.com/api/menu");
+        const res = await fetch("http://localhost:3005/api/menu");
         const data = await res.json();
         setMenu(data);
       } catch (err) {
@@ -65,7 +65,7 @@ export default function Home() {
     setIsFinalizing(true);
 
     try {
-      const res = await fetch("https://pizzaria-baianinha.onrender.com/api/pedidos", {
+      const res = await fetch("http://localhost:3005/api/pedidos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ itens: carrinho, total: totalPreco }),
@@ -104,7 +104,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-6xl md:text-8xl font-black text-white mb-8 tracking-tighter"
+            className="text-5xl sm:text-6xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-tight"
           >
             Sabor que <br /> <span className="text-orange-200">Encanta.</span>
           </motion.h1>
@@ -339,8 +339,14 @@ export default function Home() {
             </ul>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto border-t border-white/10 mt-24 pt-8 text-center text-gray-500 text-sm">
-          © 2026 Pizzaria Baianinha. Todos os direitos reservados.
+        <div className="max-w-7xl mx-auto border-t border-white/10 mt-24 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-gray-500 text-sm">
+          <p>© 2026 Pizzaria Baianinha. Todos os direitos reservados.</p>
+          <a 
+            href="/admin" 
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg transition-colors text-gray-400 hover:text-white"
+          >
+            <Lock size={14} /> Acesso Administrativo
+          </a>
         </div>
       </footer>
     </div>
