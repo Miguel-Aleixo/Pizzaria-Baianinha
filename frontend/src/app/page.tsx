@@ -121,7 +121,7 @@ export default function Home() {
       </section>
 
       {/* Info Bar */}
-      <div className="max-w-7xl mx-auto px-6 -mt-12 relative z-20">
+      <div className="max-w-7xl mx-auto px-6 -mt-12 md:-m-0 relative z-20">
         <div className="bg-white shadow-xl rounded-2xl p-8 grid grid-cols-1 md:grid-cols-3 gap-8 border border-orange-50">
           <div className="flex items-center gap-4">
             <div className="bg-orange-100 p-3 rounded-xl text-orange-600"><Clock /></div>
