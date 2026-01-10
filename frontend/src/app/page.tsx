@@ -25,7 +25,7 @@ export default function Home() {
   useEffect(() => {
     const fetchMenu = async () => {
       try {
-        const res = await fetch("http://localhost:3005/api/menu");
+        const res = await fetch("https://pizzaria-baianinha.onrender.com/api/menu");
         const data = await res.json();
         setMenu(data);
       } catch (err) {
@@ -65,7 +65,7 @@ export default function Home() {
     setIsFinalizing(true);
 
     try {
-      const res = await fetch("http://localhost:3005/api/pedidos", {
+      const res = await fetch("https://pizzaria-baianinha.onrender.com/api/pedidos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ itens: carrinho, total: totalPreco }),
