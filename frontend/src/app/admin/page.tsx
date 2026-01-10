@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Utensils, ShoppingBag, Plus, Trash2, Edit, CheckCircle, Clock, XCircle, BarChart3, TrendingUp, DollarSign, Package } from "lucide-react";
+import { LayoutDashboard, Utensils, ShoppingBag, Plus, Trash2, Edit, CheckCircle, Clock, XCircle, BarChart3, TrendingUp, DollarSign, Package, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface IPizza {
@@ -31,6 +31,7 @@ export default function AdminPanel() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPizza, setEditingPizza] = useState<Partial<IPizza> | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -102,9 +103,23 @@ export default function AdminPanel() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+      {/* Mobile Header */}
+      <div className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50">
+        <div className="flex items-center gap-2">
+          <LayoutDashboard className="text-orange-500" />
+          <span className="text-xl font-black tracking-tighter">ADMIN</span>
+        </div>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 hover:bg-slate-800 rounded-lg transition">
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white p-6 flex flex-col">
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white p-6 flex flex-col transition-transform duration-300 md:relative md:translate-x-0",
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
         <div className="flex items-center gap-2 mb-12">
           <LayoutDashboard className="text-orange-500" />
           <span className="text-xl font-black tracking-tighter">ADMIN BAIANINHA</span>
@@ -112,7 +127,7 @@ export default function AdminPanel() {
         
         <nav className="space-y-2 flex-1">
           <button 
-            onClick={() => setActiveTab("pedidos")}
+            onClick={() => { setActiveTab("pedidos"); setIsMobileMenuOpen(false); }}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition",
               activeTab === "pedidos" ? "bg-orange-600 text-white" : "hover:bg-slate-800 text-slate-400"
@@ -121,7 +136,7 @@ export default function AdminPanel() {
             <ShoppingBag size={20} /> Pedidos
           </button>
           <button 
-            onClick={() => setActiveTab("cardapio")}
+            onClick={() => { setActiveTab("cardapio"); setIsMobileMenuOpen(false); }}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition",
               activeTab === "cardapio" ? "bg-orange-600 text-white" : "hover:bg-slate-800 text-slate-400"
@@ -130,7 +145,7 @@ export default function AdminPanel() {
             <Utensils size={20} /> Cardápio
           </button>
           <button 
-            onClick={() => setActiveTab("relatorios")}
+            onClick={() => { setActiveTab("relatorios"); setIsMobileMenuOpen(false); }}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition",
               activeTab === "relatorios" ? "bg-orange-600 text-white" : "hover:bg-slate-800 text-slate-400"
@@ -152,9 +167,9 @@ export default function AdminPanel() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-12 overflow-y-auto">
-        <header className="flex justify-between items-center mb-12">
-          <h1 className="text-4xl font-black text-slate-900 capitalize">{activeTab}</h1>
+      <main className="flex-1 p-6 md:p-12 overflow-y-auto">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12 gap-4">
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 capitalize">{activeTab}</h1>
           {activeTab === "cardapio" && (
             <button 
               onClick={() => { setEditingPizza({}); setIsModalOpen(true); }}
@@ -232,7 +247,7 @@ export default function AdminPanel() {
                 <motion.div 
                   layout
                   key={pedido.id} 
-                  className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between gap-8"
+                  className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between gap-6 md:gap-8"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-4 mb-4">
@@ -270,37 +285,39 @@ export default function AdminPanel() {
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest">Pizza</th>
-                  <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest">Categoria</th>
-                  <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest">Preço</th>
-                  <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {menu.map((pizza) => (
-                  <tr key={pizza.id} className="hover:bg-slate-50 transition">
-                    <td className="px-8 py-6">
-                      <p className="font-bold text-slate-900">{pizza.nome}</p>
-                      <p className="text-sm text-slate-500 truncate max-w-xs">{pizza.descricao}</p>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold uppercase">{pizza.categoria}</span>
-                    </td>
-                    <td className="px-8 py-6 font-black text-slate-900">R$ {pizza.preco}</td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => { setEditingPizza(pizza); setIsModalOpen(true); }} className="p-2 text-slate-400 hover:text-orange-600 transition"><Edit size={18} /></button>
-                        <button onClick={() => handleDeletePizza(pizza.id)} className="p-2 text-slate-400 hover:text-red-600 transition"><Trash2 size={18} /></button>
-                      </div>
-                    </td>
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm overflow-x-auto">
+            <div className="min-w-[600px]">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest">Pizza</th>
+                    <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest">Preço</th>
+                    <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest">Categoria</th>
+                    <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest text-right">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {menu.map((pizza) => (
+                    <tr key={pizza.id} className="border-b border-slate-50 hover:bg-slate-50 transition">
+                      <td className="px-8 py-6">
+                        <p className="font-bold text-slate-900">{pizza.nome}</p>
+                        <p className="text-sm text-slate-400">{pizza.descricao}</p>
+                      </td>
+                      <td className="px-8 py-6 font-bold text-slate-600">R$ {pizza.preco}</td>
+                      <td className="px-8 py-6">
+                        <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold uppercase">{pizza.categoria}</span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => { setEditingPizza(pizza); setIsModalOpen(true); }} className="p-2 text-slate-400 hover:text-orange-600 transition"><Edit size={18} /></button>
+                          <button onClick={() => handleDeletePizza(pizza.id)} className="p-2 text-slate-400 hover:text-red-600 transition"><Trash2 size={18} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </main>
