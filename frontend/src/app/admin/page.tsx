@@ -53,9 +53,9 @@ export default function AdminPanel() {
   const fetchData = async () => {
     try {
       const [menuRes, pedidosRes, statsRes] = await Promise.all([
-        fetch("http://localhost:3005/api/menu"),
-        fetch("http://localhost:3005/api/pedidos"),
-        fetch("http://localhost:3005/api/stats")
+        fetch("https://pizzaria-baianinha.onrender.com/api/menu"),
+        fetch("https://pizzaria-baianinha.onrender.com/api/pedidos"),
+        fetch("https://pizzaria-baianinha.onrender.com/api/stats")
       ]);
       setMenu(await menuRes.json());
       setPedidos(await pedidosRes.json());
@@ -69,8 +69,8 @@ export default function AdminPanel() {
     e.preventDefault();
     const method = editingPizza?.id ? "PUT" : "POST";
     const url = editingPizza?.id 
-      ? `http://localhost:3005/api/menu/${editingPizza.id}` 
-      : "http://localhost:3005/api/menu";
+      ? `https://pizzaria-baianinha.onrender.com/api/menu/${editingPizza.id}` 
+      : "https://pizzaria-baianinha.onrender.com/api/menu";
 
     await fetch(url, {
       method,
@@ -85,13 +85,13 @@ export default function AdminPanel() {
 
   const handleDeletePizza = async (id: number) => {
     if (confirm("Tem certeza que deseja excluir esta pizza?")) {
-      await fetch(`http://localhost:3005/api/menu/${id}`, { method: "DELETE" });
+      await fetch(`https://pizzaria-baianinha.onrender.com/api/menu/${id}`, { method: "DELETE" });
       fetchData();
     }
   };
 
   const updatePedidoStatus = async (id: number, status: string) => {
-    await fetch(`http://localhost:3005/api/pedidos/${id}`, {
+    await fetch(`https://pizzaria-baianinha.onrender.com/api/pedidos/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
