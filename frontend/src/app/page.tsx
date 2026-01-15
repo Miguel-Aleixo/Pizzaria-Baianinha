@@ -56,7 +56,7 @@ export default function Home() {
   const [observacao, setObservacao] = useState("");
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pizzaria-baianinha.onrender.com'}/api/menu`)
       .then(res => res.json())
       .then(data => setMenu(data))
       .catch(err => console.error("Erro ao buscar menu:", err));
@@ -112,7 +112,7 @@ export default function Home() {
     if (carrinho.length === 0) return;
     setIsFinalizing(true);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/pedidos`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pizzaria-baianinha.onrender.com'}/api/pedidos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ itens: carrinho, total: totalPreco }),
