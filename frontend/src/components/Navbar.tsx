@@ -11,9 +11,9 @@ export default function Navbar({ cartCount }: { cartCount: number }) {
           <span className="text-2xl font-black text-orange-600 tracking-tighter">BAIANINHA</span>
         </div>
         <div className="flex items-center gap-8 font-medium text-gray-600">
-          <a href="#" className="hover:text-orange-600 transition">Início</a>
-          <a href="#menu" className="hover:text-orange-600 transition">Cardápio</a>
-          <a href="#" className="hover:text-orange-600 transition">Sobre</a>
+          <a href="#" className="hover:text-orange-600 hidden md:flex transition">Início</a>
+          <a href="#menu" className="hover:text-orange-600 hidden md:flex transition">Cardápio</a>
+          <a href="#" className="hover:text-orange-600 hidden md:flex transition">Sobre</a>
           <button className="relative p-2 hover:bg-orange-50 rounded-full transition">
             <ShoppingCart className="w-6 h-6 text-gray-700" />
             {cartCount > 0 && (
