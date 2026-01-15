@@ -18,7 +18,7 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const res = await fetch("https://pizzaria-baianinha.onrender.com/api/login", {
+      const res = await fetch("http://localhost:3005/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),

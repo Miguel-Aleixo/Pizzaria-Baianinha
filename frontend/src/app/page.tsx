@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Star, Clock, MapPin, Lock, X, Info, Pizza } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Star, Clock, MapPin, Lock, X, Info } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +56,7 @@ export default function Home() {
   const [observacao, setObservacao] = useState("");
 
   useEffect(() => {
-    fetch("https://pizzaria-baianinha.onrender.com/api/menu")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu`)
       .then(res => res.json())
       .then(data => setMenu(data))
       .catch(err => console.error("Erro ao buscar menu:", err));
@@ -112,7 +112,7 @@ export default function Home() {
     if (carrinho.length === 0) return;
     setIsFinalizing(true);
     try {
-      await fetch("https://pizzaria-baianinha.onrender.com/api/pedidos", {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/pedidos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ itens: carrinho, total: totalPreco }),

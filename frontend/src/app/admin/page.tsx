@@ -52,9 +52,9 @@ export default function AdminPanel() {
   const fetchData = async () => {
     try {
       const [menuRes, pedidosRes, statsRes] = await Promise.all([
-        fetch("https://pizzaria-baianinha.onrender.com/api/menu"),
-        fetch("https://pizzaria-baianinha.onrender.com/api/pedidos"),
-        fetch("https://pizzaria-baianinha.onrender.com/api/stats")
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/pedidos`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/stats`)
       ]);
       setMenu(await menuRes.json());
       setPedidos(await pedidosRes.json());
@@ -68,8 +68,8 @@ export default function AdminPanel() {
     e.preventDefault();
     const method = editingItem?.id ? "PUT" : "POST";
     const url = editingItem?.id 
-      ? `https://pizzaria-baianinha.onrender.com/api/menu/${editingItem.id}` 
-      : "https://pizzaria-baianinha.onrender.com/api/menu";
+      ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu/${editingItem.id}` 
+      : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu`;
 
     await fetch(url, {
       method,
@@ -82,13 +82,13 @@ export default function AdminPanel() {
 
   const handleDeleteItem = async (id: number) => {
     if (confirm("Tem certeza que deseja excluir este item?")) {
-      await fetch(`https://pizzaria-baianinha.onrender.com/api/menu/${id}`, { method: "DELETE" });
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu/${id}`, { method: "DELETE" });
       fetchData();
     }
   };
 
   const updatePedidoStatus = async (id: number, status: string) => {
-    await fetch(`https://pizzaria-baianinha.onrender.com/api/pedidos/${id}`, {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/pedidos/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
