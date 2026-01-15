@@ -2,166 +2,181 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Star, Clock, MapPin, Lock, Pizza } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Star, Clock, MapPin, Lock, X, Info } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { cn } from "@/lib/utils";
 
-interface IPizza {
+interface IProduto {
   id: number;
   nome: string;
   preco: number;
   descricao: string;
   categoria: string;
-  imagem?: string;
+  tipo: 'pizza' | 'bebida';
 }
 
+interface IBorda {
+  id: string;
+  nome: string;
+  preco: number;
+}
+
+interface IItemCarrinho {
+  id_temp: string;
+  produto?: IProduto;
+  isMeioAMeio: boolean;
+  sabor1?: IProduto;
+  sabor2?: IProduto;
+  borda: IBorda;
+  observacao: string;
+  qtd: number;
+  precoUnitario: number;
+}
+
+const BORDAS: IBorda[] = [
+  { id: 'nenhuma', nome: 'Sem Borda Recheada', preco: 0 },
+  { id: 'catupiry', nome: 'Borda de Catupiry', preco: 5 },
+  { id: 'cheddar', nome: 'Borda de Cheddar', preco: 5 },
+  { id: 'chocolate', nome: 'Borda de Chocolate', preco: 7 }
+];
+
 export default function Home() {
-  const [menu, setMenu] = useState<IPizza[]>([]);
-  const [carrinho, setCarrinho] = useState<{ pizza: IPizza; qtd: number }[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [filtro, setFiltro] = useState("Todas");
+  const [menu, setMenu] = useState<IProduto[]>([]);
+  const [carrinho, setCarrinho] = useState<IItemCarrinho[]>([]);
+  const [isCarrinhoOpen, setIsCarrinhoOpen] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [categoriaAtiva, setCategoriaAtiva] = useState("Todas");
+
+  // Estados para o Modal de Personalização
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [produtoSelecionado, setProdutoSelecionado] = useState<IProduto | null>(null);
+  const [isMeioAMeio, setIsMeioAMeio] = useState(false);
+  const [sabor2, setSabor2] = useState<IProduto | null>(null);
+  const [bordaSelecionada, setBordaSelecionada] = useState<IBorda>(BORDAS[0]);
+  const [observacao, setObservacao] = useState("");
 
   useEffect(() => {
-    const fetchMenu = async () => {
-      try {
-        const res = await fetch("https://pizzaria-baianinha.onrender.com/api/menu");
-        const data = await res.json();
-        setMenu(data);
-      } catch (err) {
-        console.error("Erro ao buscar menu:", err);
-      }
-    };
-    fetchMenu();
+    fetch("http://localhost:3005/api/menu")
+      .then(res => res.json())
+      .then(data => setMenu(data))
+      .catch(err => console.error("Erro ao buscar menu:", err));
   }, []);
 
-  const adicionarAoCarrinho = (pizza: IPizza) => {
-    const itemExistente = carrinho.find((item) => item.pizza.id === pizza.id);
-    if (itemExistente) {
-      setCarrinho(carrinho.map((item) => 
-        item.pizza.id === pizza.id ? { ...item, qtd: item.qtd + 1 } : item
-      ));
-    } else {
-      setCarrinho([...carrinho, { pizza, qtd: 1 }]);
-    }
+  const categorias = ["Todas", ...Array.from(new Set(menu.map(p => p.categoria)))];
+  const produtosFiltrados = categoriaAtiva === "Todas" 
+    ? menu 
+    : menu.filter(p => p.categoria === categoriaAtiva);
+
+  const abrirPersonalizacao = (produto: IProduto) => {
+    setProdutoSelecionado(produto);
+    setIsMeioAMeio(false);
+    setSabor2(null);
+    setBordaSelecionada(BORDAS[0]);
+    setObservacao("");
+    setIsModalOpen(true);
   };
 
-  const removerDoCarrinho = (id: number) => {
-    const itemExistente = carrinho.find((item) => item.pizza.id === id);
-    if (itemExistente && itemExistente.qtd > 1) {
-      setCarrinho(carrinho.map((item) => 
-        item.pizza.id === id ? { ...item, qtd: item.qtd - 1 } : item
-      ));
-    } else {
-      setCarrinho(carrinho.filter((item) => item.pizza.id !== id));
-    }
+  const adicionarAoCarrinho = () => {
+    if (!produtoSelecionado) return;
+
+    const precoBase = isMeioAMeio && sabor2 
+      ? Math.max(produtoSelecionado.preco, sabor2.preco) 
+      : produtoSelecionado.preco;
+    
+    const precoTotalItem = precoBase + bordaSelecionada.preco;
+
+    const novoItem: IItemCarrinho = {
+      id_temp: Math.random().toString(36).substr(2, 9),
+      produto: isMeioAMeio ? undefined : produtoSelecionado,
+      isMeioAMeio,
+      sabor1: isMeioAMeio ? produtoSelecionado : undefined,
+      sabor2: isMeioAMeio ? (sabor2 || undefined) : undefined,
+      borda: bordaSelecionada,
+      observacao,
+      qtd: 1,
+      precoUnitario: precoTotalItem
+    };
+
+    setCarrinho([...carrinho, novoItem]);
+    setIsModalOpen(false);
+    setIsCarrinhoOpen(true);
   };
 
-  const totalItens = carrinho.reduce((acc, item) => acc + item.qtd, 0);
-  const totalPreco = carrinho.reduce((acc, item) => acc + item.pizza.preco * item.qtd, 0);
+  const removerDoCarrinho = (id_temp: string) => {
+    setCarrinho(carrinho.filter(item => item.id_temp !== id_temp));
+  };
+
+  const totalPreco = carrinho.reduce((acc, item) => acc + (item.precoUnitario * item.qtd), 0);
 
   const finalizarPedido = async () => {
     if (carrinho.length === 0) return;
     setIsFinalizing(true);
-
     try {
-      const res = await fetch("https://pizzaria-baianinha.onrender.com/api/pedidos", {
+      await fetch("http://localhost:3005/api/pedidos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ itens: carrinho, total: totalPreco }),
       });
-      const data = await res.json();
-      alert(data.message);
+      alert("Pedido enviado com sucesso!");
       setCarrinho([]);
-      setIsCartOpen(false);
+      setIsCarrinhoOpen(false);
     } catch (err) {
-      console.error("Erro ao enviar pedido:", err);
-      alert("Erro ao conectar com o servidor. Tente novamente.");
+      alert("Erro ao enviar pedido.");
     } finally {
       setIsFinalizing(false);
     }
   };
 
-  const categorias = ["Todas", ...Array.from(new Set(menu.map((p) => p.categoria)))];
-  const menuFiltrado = filtro === "Todas" ? menu : menu.filter((p) => p.categoria === filtro);
-
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans">
-      <Navbar cartCount={totalItens} />
-
+    <div className="min-h-screen bg-white font-sans text-slate-900">
+      <Navbar />
+      
       {/* Hero Section */}
-      <section className="relative h-[70vh] flex items-center justify-center overflow-hidden bg-orange-600">
-        <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80')] bg-cover bg-center" />
-        <div className="relative z-10 text-center px-4">
-          <motion.h2 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-white text-lg font-bold tracking-widest uppercase mb-4"
-          >
-            A Melhor Pizza da Região
-          </motion.h2>
+      <section className="relative h-[80vh] flex items-center justify-center overflow-hidden bg-slate-900">
+        <div className="absolute inset-0 z-0 opacity-40">
+          <img 
+            src="https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=2000" 
+            alt="Pizza" 
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <div className="relative z-10 text-center px-4 max-w-4xl">
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-5xl sm:text-6xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-tight"
+            className="text-5xl sm:text-7xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-tight"
           >
-            Sabor que <br /> <span className="text-orange-200">Encanta.</span>
+            Pizzaria <span className="text-orange-500 text-shadow-lg">Baianinha</span>
           </motion.h1>
-          <motion.button 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            onClick={() => document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' })}
-            className="bg-white text-orange-600 px-8 py-4 rounded-full font-bold text-lg hover:bg-orange-50 transition-all flex items-center gap-2 mx-auto"
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-xl text-slate-200 mb-10 font-medium"
           >
-            Ver Cardápio <ChevronRight className="w-5 h-5" />
-          </motion.button>
+            O tempero da Bahia na melhor pizza da cidade.
+          </motion.p>
+          <a href="#cardapio" className="bg-orange-600 text-white px-10 py-5 rounded-full font-black text-lg hover:bg-orange-700 transition-all shadow-2xl shadow-orange-900/20 inline-block">
+            VER CARDÁPIO
+          </a>
         </div>
       </section>
 
-      {/* Info Bar */}
-      <div className="max-w-7xl mx-auto px-6 -mt-12 md:-m-0 relative z-20">
-        <div className="bg-white shadow-xl rounded-2xl p-8 grid grid-cols-1 md:grid-cols-3 gap-8 border border-orange-50">
-          <div className="flex items-center gap-4">
-            <div className="bg-orange-100 p-3 rounded-xl text-orange-600"><Clock /></div>
-            <div>
-              <h4 className="font-bold">30-45 min</h4>
-              <p className="text-sm text-gray-500">Tempo de entrega</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="bg-orange-100 p-3 rounded-xl text-orange-600"><Star /></div>
-            <div>
-              <h4 className="font-bold">4.9 Estrelas</h4>
-              <p className="text-sm text-gray-500">Avaliação dos clientes</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="bg-orange-100 p-3 rounded-xl text-orange-600"><MapPin /></div>
-            <div>
-              <h4 className="font-bold">Entrega Grátis</h4>
-              <p className="text-sm text-gray-500">Para pedidos acima de R$ 80</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Menu Section */}
-      <section id="menu" className="max-w-7xl mx-auto px-6 py-24">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+      <section id="cardapio" className="py-24 px-4 max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
           <div>
-            <h2 className="text-4xl font-black tracking-tight mb-2">Nosso Cardápio</h2>
-            <p className="text-gray-500">Escolha entre nossas opções artesanais</p>
+            <h2 className="text-5xl font-black tracking-tighter mb-4">Nosso Cardápio</h2>
+            <p className="text-slate-500 text-lg">Escolha entre pizzas clássicas, doces e bebidas geladas.</p>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto">
-            {categorias.map((cat) => (
-              <button
+            {categorias.map(cat => (
+              <button 
                 key={cat}
-                onClick={() => setFiltro(cat)}
+                onClick={() => setCategoriaAtiva(cat)}
                 className={cn(
-                  "px-6 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap",
-                  filtro === cat ? "bg-orange-600 text-white shadow-lg shadow-orange-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  "px-6 py-3 rounded-full font-bold transition-all whitespace-nowrap",
+                  categoriaAtiva === cat ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                 )}
               >
                 {cat}
@@ -170,185 +185,252 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          <AnimatePresence mode="popLayout">
-            {menuFiltrado.map((pizza) => (
-              <motion.div
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                key={pizza.id}
-                className="group bg-white rounded-3xl overflow-hidden border border-gray-100 hover:border-orange-200 hover:shadow-2xl hover:shadow-orange-100 transition-all duration-500"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+          {produtosFiltrados.map((produto) => (
+            <motion.div 
+              layout
+              key={produto.id}
+              className="group bg-white rounded-[2.5rem] border border-slate-100 p-8 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500"
+            >
+              <div className="mb-6 overflow-hidden rounded-3xl h-48 bg-slate-100">
+                <img 
+                  src={produto.tipo === 'pizza' 
+                    ? "https://images.unsplash.com/photo-1574126154517-d1e0d89ef734?auto=format&fit=crop&q=80&w=800"
+                    : "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&q=80&w=800"
+                  } 
+                  alt={produto.nome}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                />
+              </div>
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-2xl font-black tracking-tight">{produto.nome}</h3>
+                <span className="text-orange-600 font-black text-xl">R${produto.preco}</span>
+              </div>
+              <p className="text-slate-500 mb-8 line-clamp-2 font-medium">{produto.descricao}</p>
+              <button 
+                onClick={() => abrirPersonalizacao(produto)}
+                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 group-hover:bg-orange-600 transition-colors"
               >
-                <div className="h-64 bg-gray-100 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1574126154517-d1e0d89ef734?auto=format&fit=crop&q=80')] bg-cover bg-center group-hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-black text-orange-600 uppercase">
-                    {pizza.categoria}
-                  </div>
-                </div>
-                <div className="p-8">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-2xl font-bold group-hover:text-orange-600 transition-colors">{pizza.nome}</h3>
-                    <span className="text-xl font-black text-orange-600">R$ {pizza.preco}</span>
-                  </div>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-8">{pizza.descricao}</p>
-                  <button
-                    onClick={() => adicionarAoCarrinho(pizza)}
-                    className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-orange-600 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" /> Adicionar ao Pedido
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                <Plus size={20} /> {produto.tipo === 'pizza' ? 'Personalizar' : 'Adicionar'}
+              </button>
+            </motion.div>
+          ))}
         </div>
       </section>
 
-      {/* Floating Cart Button */}
+      {/* Modal de Personalização */}
       <AnimatePresence>
-        {totalItens > 0 && (
-          <motion.button
-            initial={{ y: 100 }}
-            animate={{ y: 0 }}
-            exit={{ y: 100 }}
-            onClick={() => setIsCartOpen(true)}
-            className="fixed bottom-8 right-8 z-40 bg-orange-600 text-white px-8 py-4 rounded-full shadow-2xl shadow-orange-300 flex items-center gap-4 hover:scale-105 transition-transform"
-          >
-            <div className="relative">
-              <ShoppingCart className="w-6 h-6" />
-              <span className="absolute -top-2 -right-2 bg-white text-orange-600 text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full">
-                {totalItens}
-              </span>
-            </div>
-            <span className="font-bold text-lg">Ver Pedido • R$ {totalPreco}</span>
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Cart Sidebar */}
-      <AnimatePresence>
-        {isCartOpen && (
-          <>
+        {isModalOpen && produtoSelecionado && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsCartOpen(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
             />
             <motion.div 
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-[60] shadow-2xl flex flex-col"
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden"
             >
-              <div className="p-8 border-b flex justify-between items-center">
-                <h2 className="text-2xl font-black tracking-tight">Seu Pedido</h2>
-                <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition">
-                  <Plus className="w-6 h-6 rotate-45" />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-8">
-                {carrinho.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center">
-                    <div className="bg-gray-50 p-6 rounded-full mb-4"><ShoppingCart className="w-12 h-12 text-gray-300" /></div>
-                    <p className="text-gray-500 font-medium">Seu carrinho está vazio.<br/>Que tal adicionar uma pizza?</p>
+              <div className="p-8 md:p-12 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-start mb-8">
+                  <div>
+                    <h2 className="text-3xl font-black tracking-tighter">Personalizar Pedido</h2>
+                    <p className="text-slate-500">{produtoSelecionado.nome}</p>
                   </div>
-                ) : (
-                  <div className="space-y-6">
-                    {carrinho.map((item) => (
-                      <div key={item.pizza.id} className="flex gap-4">
-                        <div className="w-20 h-20 bg-gray-100 rounded-2xl overflow-hidden flex-shrink-0">
-                          <div className="w-full h-full bg-[url('https://images.unsplash.com/photo-1574126154517-d1e0d89ef734?auto=format&fit=crop&q=80')] bg-cover bg-center" />
+                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {produtoSelecionado.tipo === 'pizza' && (
+                  <div className="space-y-8">
+                    {/* Meio a Meio */}
+                    <div className="bg-slate-50 p-6 rounded-3xl">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={isMeioAMeio} 
+                          onChange={(e) => setIsMeioAMeio(e.target.checked)}
+                          className="w-6 h-6 rounded-lg accent-orange-600"
+                        />
+                        <span className="font-black text-lg">Deseja meio a meio?</span>
+                      </label>
+                      
+                      {isMeioAMeio && (
+                        <div className="mt-6">
+                          <p className="font-bold mb-3 text-slate-600">Escolha o segundo sabor:</p>
+                          <select 
+                            className="w-full p-4 rounded-2xl border-2 border-slate-200 font-bold"
+                            onChange={(e) => setSabor2(menu.find(p => p.id === Number(e.target.value)) || null)}
+                          >
+                            <option value="">Selecione um sabor...</option>
+                            {menu.filter(p => p.tipo === 'pizza' && p.id !== produtoSelecionado.id).map(p => (
+                              <option key={p.id} value={p.id}>{p.nome} (+R${p.preco})</option>
+                            ))}
+                          </select>
                         </div>
-                        <div className="flex-1">
-                          <div className="flex justify-between mb-1">
-                            <h4 className="font-bold">{item.pizza.nome}</h4>
-                            <span className="font-bold text-orange-600">R$ {item.pizza.preco * item.qtd}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
-                              <button onClick={() => removerDoCarrinho(item.pizza.id)} className="p-1 hover:bg-white rounded shadow-sm transition"><Minus className="w-4 h-4" /></button>
-                              <span className="font-bold text-sm w-4 text-center">{item.qtd}</span>
-                              <button onClick={() => adicionarAoCarrinho(item.pizza)} className="p-1 hover:bg-white rounded shadow-sm transition"><Plus className="w-4 h-4" /></button>
-                            </div>
-                            <button onClick={() => setCarrinho(carrinho.filter(c => c.pizza.id !== item.pizza.id))} className="text-gray-400 hover:text-red-500 transition"><Trash2 className="w-4 h-4" /></button>
-                          </div>
-                        </div>
+                      )}
+                    </div>
+
+                    {/* Bordas */}
+                    <div>
+                      <h4 className="font-black text-xl mb-4">Escolha a Borda</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {BORDAS.map(b => (
+                          <button 
+                            key={b.id}
+                            onClick={() => setBordaSelecionada(b)}
+                            className={cn(
+                              "p-4 rounded-2xl border-2 text-left transition-all",
+                              bordaSelecionada.id === b.id ? "border-orange-600 bg-orange-50" : "border-slate-100 hover:border-slate-200"
+                            )}
+                          >
+                            <p className="font-bold">{b.nome}</p>
+                            <p className="text-sm text-slate-500">+ R${b.preco}</p>
+                          </button>
+                        ))}
                       </div>
-                    ))}
+                    </div>
                   </div>
                 )}
-              </div>
 
-              <div className="p-8 bg-gray-50 border-t">
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-500">Subtotal</span>
-                  <span className="font-bold">R$ {totalPreco}</span>
+                {/* Observações */}
+                <div className="mt-8">
+                  <h4 className="font-black text-xl mb-4">Observações</h4>
+                  <textarea 
+                    placeholder="Ex: Sem cebola, bem passada, etc..."
+                    className="w-full p-6 rounded-3xl border-2 border-slate-100 focus:border-orange-600 outline-none transition-all h-32 font-medium"
+                    value={observacao}
+                    onChange={(e) => setObservacao(e.target.value)}
+                  />
                 </div>
-                <div className="flex justify-between mb-6">
-                  <span className="text-gray-500">Taxa de entrega</span>
-                  <span className="text-green-600 font-bold">Grátis</span>
-                </div>
-                <div className="flex justify-between text-2xl font-black mb-8">
-                  <span>Total</span>
-                  <span>R$ {totalPreco}</span>
-                </div>
+
                 <button 
-                  onClick={finalizarPedido}
-                  disabled={carrinho.length === 0 || isFinalizing}
-                  className="w-full bg-orange-600 text-white py-5 rounded-2xl font-black text-lg hover:bg-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-orange-200"
+                  onClick={adicionarAoCarrinho}
+                  className="w-full bg-orange-600 text-white py-6 rounded-3xl font-black text-xl mt-10 hover:bg-orange-700 transition-all shadow-xl shadow-orange-200"
                 >
-                  {isFinalizing ? "Processando..." : "Finalizar Pedido"}
+                  ADICIONAR AO CARRINHO
                 </button>
               </div>
             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Carrinho Sidebar */}
+      <AnimatePresence>
+        {isCarrinhoOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsCarrinhoOpen(false)}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150]"
+            />
+            <motion.aside 
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-[160] shadow-2xl flex flex-col"
+            >
+              <div className="p-8 border-b border-slate-100 flex justify-between items-center">
+                <h2 className="text-3xl font-black tracking-tighter">Seu Carrinho</h2>
+                <button onClick={() => setIsCarrinhoOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                {carrinho.length === 0 ? (
+                  <div className="text-center py-20">
+                    <ShoppingCart size={64} className="mx-auto text-slate-200 mb-6" />
+                    <p className="text-slate-400 font-bold">Seu carrinho está vazio.</p>
+                  </div>
+                ) : (
+                  carrinho.map((item) => (
+                    <div key={item.id_temp} className="bg-slate-50 p-6 rounded-3xl relative group">
+                      <button 
+                        onClick={() => removerDoCarrinho(item.id_temp)}
+                        className="absolute -top-2 -right-2 bg-white text-red-500 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <div className="flex justify-between mb-2">
+                        <h4 className="font-black text-lg">
+                          {item.isMeioAMeio ? `Meio ${item.sabor1?.nome} / Meio ${item.sabor2?.nome}` : item.produto?.nome}
+                        </h4>
+                        <span className="font-black text-orange-600">R${item.precoUnitario}</span>
+                      </div>
+                      <div className="text-sm text-slate-500 space-y-1 font-medium">
+                        {item.borda.id !== 'nenhuma' && <p>• {item.borda.nome}</p>}
+                        {item.observacao && <p className="italic text-slate-400">" {item.observacao} "</p>}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="p-8 bg-slate-50 border-t border-slate-100">
+                <div className="flex justify-between items-center mb-8">
+                  <span className="text-slate-500 font-bold uppercase tracking-widest">Total</span>
+                  <span className="text-4xl font-black">R$ {totalPreco}</span>
+                </div>
+                <button 
+                  disabled={carrinho.length === 0 || isFinalizing}
+                  onClick={finalizarPedido}
+                  className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black text-xl hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isFinalizing ? "PROCESSANDO..." : "FINALIZAR PEDIDO"}
+                </button>
+              </div>
+            </motion.aside>
           </>
         )}
       </AnimatePresence>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-white py-24 px-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
+      <footer className="bg-slate-900 text-white py-24 px-4">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-16">
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2 mb-6">
-              <Pizza className="text-orange-500 w-8 h-8" />
-              <span className="text-3xl font-black tracking-tighter">BAIANINHA</span>
-            </div>
-            <p className="text-gray-400 max-w-sm leading-relaxed">
-              Levando o melhor sabor da Bahia para sua mesa desde 2010. Ingredientes selecionados e massa de fermentação lenta.
-            </p>
+            <h3 className="text-4xl font-black tracking-tighter mb-6">Pizzaria <span className="text-orange-500">Baianinha</span></h3>
+            <p className="text-gray-400 text-lg max-w-md">Levando o melhor sabor da Bahia para a sua mesa desde 2026. Qualidade e tradição em cada fatia.</p>
           </div>
           <div>
-            <h4 className="font-bold mb-6">Links Rápidos</h4>
-            <ul className="space-y-4 text-gray-400">
-              <li><a href="#" className="hover:text-orange-500 transition">Cardápio</a></li>
-              <li><a href="#" className="hover:text-orange-500 transition">Sobre Nós</a></li>
-              <li><a href="#" className="hover:text-orange-500 transition">Trabalhe Conosco</a></li>
+            <h4 className="font-bold mb-6 uppercase tracking-widest text-sm text-orange-500">Links</h4>
+            <ul className="space-y-4 text-gray-400 font-medium">
+              <li><a href="#" className="hover:text-white transition">Início</a></li>
+              <li><a href="#cardapio" className="hover:text-white transition">Cardápio</a></li>
+              <li><a href="/admin" className="hover:text-white transition">Painel Admin</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-bold mb-6">Contato</h4>
-            <ul className="space-y-4 text-gray-400">
+            <h4 className="font-bold mb-6 uppercase tracking-widest text-sm text-orange-500">Contato</h4>
+            <ul className="space-y-4 text-gray-400 font-medium">
               <li>(71) 9999-9999</li>
-              <li>contato@baianinha.com</li>
               <li>Salvador, Bahia</li>
             </ul>
           </div>
         </div>
         <div className="max-w-7xl mx-auto border-t border-white/10 mt-24 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-gray-500 text-sm">
           <p>© 2026 Pizzaria Baianinha. Todos os direitos reservados.</p>
-          <a 
-            href="/admin" 
-            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg transition-colors text-gray-400 hover:text-white"
-          >
+          <a href="/admin" className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg transition-colors text-gray-400 hover:text-white">
             <Lock size={14} /> Acesso Administrativo
           </a>
         </div>
       </footer>
+
+      {/* Floating Cart Button */}
+      {carrinho.length > 0 && !isCarrinhoOpen && (
+        <motion.button 
+          initial={{ scale: 0 }} animate={{ scale: 1 }}
+          onClick={() => setIsCarrinhoOpen(true)}
+          className="fixed bottom-8 right-8 bg-orange-600 text-white p-6 rounded-full shadow-2xl z-[100] hover:scale-110 transition-transform"
+        >
+          <div className="relative">
+            <ShoppingCart size={32} />
+            <span className="absolute -top-2 -right-2 bg-white text-orange-600 w-6 h-6 rounded-full flex items-center justify-center font-black text-xs">
+              {carrinho.length}
+            </span>
+          </div>
+        </motion.button>
+      )}
     </div>
   );
 }
