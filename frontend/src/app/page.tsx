@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, Star, Clock, MapPin, Lock, Pizza, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { cn } from "@/lib/utils";
+import { body } from "framer-motion/m";
 
 interface IProduto {
   id: number;
@@ -76,15 +77,16 @@ export default function Home() {
     setBordaSelecionada(BORDAS[0]);
     setObservacao("");
     setIsModalOpen(true);
+    document.body.style.overflow = "hidden";
   };
 
   const adicionarAoCarrinho = () => {
     if (!produtoSelecionado) return;
 
-    const precoBase = isMeioAMeio && sabor2 
-      ? Math.max(produtoSelecionado.preco, sabor2.preco) 
+    const precoBase = isMeioAMeio && sabor2
+      ? Math.max(produtoSelecionado.preco, sabor2.preco)
       : produtoSelecionado.preco;
-    
+
     const precoTotalItem = precoBase + bordaSelecionada.preco;
 
     const novoItem: IItemCarrinho = {
@@ -114,6 +116,7 @@ export default function Home() {
   const finalizarPedido = async () => {
     if (carrinho.length === 0) return;
     setIsFinalizing(true);
+    document.body.style.overflow = "auto";
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/pedidos`, {
@@ -144,14 +147,14 @@ export default function Home() {
       <section className="relative h-[70vh] flex items-center justify-center overflow-hidden bg-orange-600">
         <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80')] bg-cover bg-center" />
         <div className="relative z-10 text-center px-4">
-          <motion.h2 
+          <motion.h2
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-white text-lg font-bold tracking-widest uppercase mb-4"
           >
             A Melhor Pizza da Região
           </motion.h2>
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -159,7 +162,7 @@ export default function Home() {
           >
             Sabor que <br /> <span className="text-orange-200">Encanta.</span>
           </motion.h1>
-          <motion.button 
+          <motion.button
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
@@ -200,10 +203,10 @@ export default function Home() {
 
       {/* Menu Section */}
       <section id="menu" className="max-w-7xl mx-auto px-6 py-24">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+        <div className="flex flex-col md:flex-row justify-between md:items-end mb-12 gap-6">
           <div>
-            <h2 className="text-4xl font-black tracking-tight mb-2">Nosso Cardápio</h2>
-            <p className="text-gray-500">Escolha entre nossas opções artesanais</p>
+            <h2 className="text-4xl font-black text-center md:text-left tracking-tight mb-2">Nosso Cardápio</h2>
+            <p className="text-gray-500 text-center md:text-left">Escolha entre nossas opções artesanais</p>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto">
             {categorias.map((cat) => (
@@ -230,23 +233,39 @@ export default function Home() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 key={produto.id}
-                className="group bg-white rounded-3xl overflow-hidden border border-gray-100 hover:border-orange-200 hover:shadow-2xl hover:shadow-orange-100 transition-all duration-500"
+                className="group bg-white rounded-3xl overflow-hidden border border-gray-100 hover:border-orange-200 hover:shadow-2xl hover:shadow-orange-100 transition-all duration-500 flex flex-col h-full"
               >
                 <div className="h-64 bg-gray-100 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1574126154517-d1e0d89ef734?auto=format&fit=crop&q=80')] bg-cover bg-center group-hover:scale-110 transition-transform duration-700" />
+                  <div
+                    className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700"
+                    style={{
+                      backgroundImage: (() => {
+
+                        if (produto.categoria === "Bebidas")
+                          return "url('https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&q=80')";
+
+                        if (produto.categoria === "Doces")
+                          return "url('https://images.pexels.com/photos/17637073/pexels-photo-17637073.png')";
+
+                        return "url('https://images.unsplash.com/photo-1574126154517-d1e0d89ef734?auto=format&fit=crop&q=80')";
+                      })(),
+                    }}
+
+                  />
                   <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-black text-orange-600 uppercase">
                     {produto.categoria}
                   </div>
                 </div>
-                <div className="p-8">
+
+                <div className="p-8 flex flex-col flex-1">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-2xl font-bold group-hover:text-orange-600 transition-colors">{produto.nome}</h3>
-                    <span className="text-xl font-black text-orange-600">R$ {produto.preco}</span>
+                    <span className="text-xl font-black text-orange-600 whitespace-nowrap">R$ {produto.preco}</span>
                   </div>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-8">{produto.descricao}</p>
+                  <p className="text-gray-500 text-sm leading-relaxed mb-8 line-clamp-2">{produto.descricao}</p>
                   <button
                     onClick={() => abrirPersonalizacao(produto)}
-                    className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-orange-600 transition-all flex items-center justify-center gap-2"
+                    className="mt-auto w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-orange-600 transition-all flex items-center justify-center gap-2"
                   >
                     <Plus className="w-5 h-5" /> {produto.tipo === 'pizza' ? 'Personalizar' : 'Adicionar ao Pedido'}
                   </button>
@@ -261,12 +280,15 @@ export default function Home() {
       <AnimatePresence>
         {isModalOpen && produtoSelecionado && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false)
+                document.body.style.overflow = "auto";
+              }}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
               className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden"
             >
@@ -276,7 +298,11 @@ export default function Home() {
                     <h2 className="text-3xl font-black tracking-tight">Personalizar</h2>
                     <p className="text-gray-500">{produtoSelecionado.nome}</p>
                   </div>
-                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition">
+                  <button onClick={() => {
+                    setIsModalOpen(false)
+                    document.body.style.overflow = "auto";
+
+                  }} className="p-2 hover:bg-gray-100 rounded-full transition">
                     <X size={24} />
                   </button>
                 </div>
@@ -285,19 +311,19 @@ export default function Home() {
                   <div className="space-y-8">
                     <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
                       <label className="flex items-center gap-4 cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          checked={isMeioAMeio} 
+                        <input
+                          type="checkbox"
+                          checked={isMeioAMeio}
                           onChange={(e) => setIsMeioAMeio(e.target.checked)}
                           className="w-5 h-5 rounded accent-orange-600"
                         />
                         <span className="font-bold text-lg">Deseja meio a meio?</span>
                       </label>
-                      
+
                       {isMeioAMeio && (
                         <div className="mt-6">
                           <p className="font-bold mb-3 text-gray-600 text-sm uppercase tracking-wider">Escolha o segundo sabor:</p>
-                          <select 
+                          <select
                             className="w-full p-4 rounded-xl border border-gray-200 font-bold text-gray-700 outline-none focus:border-orange-600 transition-all"
                             onChange={(e) => setSabor2(menu.find(p => p.id === Number(e.target.value)) || null)}
                           >
@@ -314,7 +340,7 @@ export default function Home() {
                       <h4 className="font-bold text-lg mb-4">Escolha a Borda</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {BORDAS.map(b => (
-                          <button 
+                          <button
                             key={b.id}
                             onClick={() => setBordaSelecionada(b)}
                             className={cn(
@@ -333,7 +359,7 @@ export default function Home() {
 
                 <div className="mt-8">
                   <h4 className="font-bold text-lg mb-4">Observações</h4>
-                  <textarea 
+                  <textarea
                     placeholder="Ex: Sem cebola, bem passada..."
                     className="w-full p-4 rounded-2xl border border-gray-200 focus:border-orange-600 outline-none transition h-32 font-medium"
                     value={observacao}
@@ -341,7 +367,7 @@ export default function Home() {
                   />
                 </div>
 
-                <button 
+                <button
                   onClick={adicionarAoCarrinho}
                   className="w-full bg-orange-600 text-white py-5 rounded-2xl font-black text-lg mt-10 hover:bg-orange-700 transition-all shadow-xl shadow-orange-200"
                 >
@@ -378,14 +404,14 @@ export default function Home() {
       <AnimatePresence>
         {isCartOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsCartOpen(false)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             />
-            <motion.div 
+            <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -393,22 +419,25 @@ export default function Home() {
             >
               <div className="p-8 border-b flex justify-between items-center">
                 <h2 className="text-2xl font-black tracking-tight">Seu Pedido</h2>
-                <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition">
+                <button onClick={() => {
+                  setIsCartOpen(false)
+                  document.body.style.overflow = "auto";
+                }} className="p-2 hover:bg-gray-100 rounded-full transition">
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto p-8">
                 {carrinho.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center">
                     <div className="bg-gray-50 p-6 rounded-full mb-4"><ShoppingCart className="w-12 h-12 text-gray-300" /></div>
-                    <p className="text-gray-500 font-medium">Seu carrinho está vazio.<br/>Que tal adicionar uma pizza?</p>
+                    <p className="text-gray-500 font-medium">Seu carrinho está vazio.<br />Que tal adicionar uma pizza?</p>
                   </div>
                 ) : (
                   <div className="space-y-6">
                     {carrinho.map((item) => (
                       <div key={item.id_temp} className="flex gap-4 bg-gray-50 p-4 rounded-2xl relative group">
-                        <button 
+                        <button
                           onClick={() => removerDoCarrinho(item.id_temp)}
                           className="absolute -top-2 -right-2 bg-white text-red-500 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition"
                         >
@@ -445,7 +474,7 @@ export default function Home() {
                   <span>Total</span>
                   <span>R$ {totalPreco}</span>
                 </div>
-                <button 
+                <button
                   onClick={finalizarPedido}
                   disabled={carrinho.length === 0 || isFinalizing}
                   className="w-full bg-orange-600 text-white py-5 rounded-2xl font-black text-lg hover:bg-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-orange-200"
@@ -489,8 +518,8 @@ export default function Home() {
         </div>
         <div className="max-w-7xl mx-auto border-t border-white/10 mt-24 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-gray-500 text-sm">
           <p>© 2026 Pizzaria Baianinha. Todos os direitos reservados.</p>
-          <a 
-            href="/admin" 
+          <a
+            href="/admin"
             className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg transition-colors text-gray-400 hover:text-white"
           >
             <Lock size={14} /> Acesso Administrativo
