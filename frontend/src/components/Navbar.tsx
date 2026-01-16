@@ -2,7 +2,7 @@
 
 import { ShoppingCart, Pizza } from "lucide-react";
 
-export default function Navbar({ cartCount = 0 }: { cartCount?: number }) {
+export default function Navbar({ cartCount }: { cartCount: number }) {
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-orange-100 px-6 py-4">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
