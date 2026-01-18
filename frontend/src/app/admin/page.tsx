@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { LayoutDashboard, Utensils, ShoppingBag, Plus, Trash2, Edit, CheckCircle, Clock, XCircle, BarChart3, TrendingUp, DollarSign, Package, Menu, X, Info } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  LayoutDashboard, Utensils, ShoppingBag, Plus, Trash2, Edit, CheckCircle, Clock, XCircle, BarChart3, TrendingUp, DollarSign, Package, LogOut, Home, AlertCircle, ChevronRight, X, Tags,
+  QrCode
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
+interface Categoria {
+  id: string;
+  nome: string;
+}
+
 interface IProduto {
-  id: number;
+  id: string;
   nome: string;
   preco: number;
   descricao: string;
@@ -15,23 +23,109 @@ interface IProduto {
   tipo: 'pizza' | 'bebida';
 }
 
-interface Pedido {
-  id: number;
-  itens: any[];
-  total: number;
-  status: string;
-  data: string;
+interface PedidoItem {
+  id?: string;
+
+  qtd: number;
+
+  produto?: {
+    id: string;
+    nome: string;
+    preco: number;
+  };
+
+  isMeioAMeio?: boolean;
+
+  sabor1?: {
+    id: string;
+    nome: string;
+  };
+
+  sabor2?: {
+    id: string;
+    nome: string;
+  };
+
+  borda?: {
+    id: string;
+    nome: string;
+    preco?: number;
+  };
+
+  observacao?: string;
 }
 
+interface Pedido {
+  id: string;
+  itens: PedidoItem[];
+  total: number;
+
+  status:
+  | "Pendente"
+  | "Preparando"
+  | "Saiu para entrega"
+  | "Entregue"
+  | "Cancelado";
+
+  pagamento: {
+    metodo: "pix" | "cartao" | "dinheiro";
+    status: "pendente" | "pago";
+    trocoPara?: number;
+  };
+
+  cliente: {
+    nome: string;
+    telefone: string;
+    endereco: string;
+  };
+
+  criadoEm: string;
+}
+
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: "easeOut"
+    },
+  },
+} as const;
+
+
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<"pedidos" | "cardapio" | "relatorios">("pedidos");
+  const [activeTab, setActiveTab] = useState<"pedidos" | "cardapio" | "categorias" | "relatorios">("pedidos");
   const [menu, setMenu] = useState<IProduto[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [novaCategoria, setNovaCategoria] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<IProduto> | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<string>("Todos");
+  const statusFiltros = ["Todos", "Pendente", "Preparando", "Saiu para entrega", "Entregue", "Cancelado"];
+
+  const pedidosFiltrados = filtroStatus === "Todos"
+    ? pedidos
+    : pedidos.filter(p => p.status === filtroStatus);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -41,263 +135,363 @@ export default function AdminPanel() {
     } else {
       setIsAuthenticated(true);
       fetchData();
+
+      // Atualização automática a cada 30 segundos para novos pedidos
+      const interval = setInterval(() => {
+        fetchData(true); // Passamos true para não mostrar o loading de tela cheia
+      }, 30000);
+
+      return () => clearInterval(interval);
     }
   }, []);
+
+  // Recarregar dados sempre que mudar de aba
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchData(true);
+    }
+  }, [activeTab]);
 
   const handleLogout = () => {
     localStorage.removeItem("admin-token");
     router.push("/admin/login");
   };
 
-  const fetchData = async () => {
+  const fetchData = async (isSilent = false) => {
     try {
-      const [menuRes, pedidosRes, statsRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu`),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/pedidos`),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/stats`)
+      if (!isSilent) setLoading(true);
+      const [menuRes, pedidosRes, statsRes, categoriasRes] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("admin-token")}` }
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/pedidos`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("admin-token")}` }
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/stats`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("admin-token")}` }
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/categorias`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("admin-token")}`
+          }
+        })
       ]);
-      setMenu(await menuRes.json());
-      setPedidos(await pedidosRes.json());
-      setStats(await statsRes.json());
+
+      const menuData = await menuRes.json();
+      const pedidosData = await pedidosRes.json();
+      const statsData = await statsRes.json();
+      const categoriasData = await categoriasRes.json();
+
+      setMenu(menuData.data || []);
+      setPedidos(pedidosData.data || []);
+      setStats(statsData.data || null);
+      setCategorias(categoriasData.data || []);
+      setError(null);
     } catch (err) {
-      console.error("Erro ao buscar dados:", err);
+      console.error(err);
+      setError("Erro ao carregar dados.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    const method = editingItem?.id ? "PUT" : "POST";
-    const url = editingItem?.id 
-      ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu/${editingItem.id}` 
+    if (!editingItem) return;
+
+    const isEdit = Boolean(editingItem.id);
+    const payload = {
+      nome: editingItem.nome,
+      preco: editingItem.preco,
+      descricao: editingItem.descricao || "",
+      categoria: editingItem.categoria || categorias[0]?.nome,
+      tipo: editingItem.tipo || "pizza",
+    };
+
+    const method = isEdit ? "PUT" : "POST";
+    const url = isEdit
+      ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu/${editingItem.id}`
       : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu`;
 
     await fetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(editingItem),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("admin-token")}` },
+      body: JSON.stringify(payload),
     });
+
     setIsModalOpen(false);
+    setEditingItem(null);
     fetchData();
   };
 
-  const handleDeleteItem = async (id: number) => {
-    if (confirm("Tem certeza que deseja excluir este item?")) {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu/${id}`, { method: "DELETE" });
-      fetchData();
-    }
+  const handleDeleteItem = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este item?")) return;
+
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${localStorage.getItem("admin-token")}` },
+    });
+
+    fetchData();
   };
 
-  const updatePedidoStatus = async (id: number, status: string) => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/pedidos/${id}`, {
+  const handleAddCategoria = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novaCategoria.trim()) return;
+
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/categorias`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("admin-token")}` },
+      body: JSON.stringify({ nome: novaCategoria }),
+    });
+
+    setNovaCategoria("");
+    fetchData();
+  };
+
+  const handleDeleteCategoria = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta categoria?")) return;
+
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/categorias/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${localStorage.getItem("admin-token")}` },
+    });
+
+    fetchData();
+  };
+
+  const updatePedidoStatus = async (id: string, status: string) => {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/pedidos/${id}/status`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("admin-token")}` },
       body: JSON.stringify({ status }),
     });
+
     fetchData();
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, { bg: string; text: string; icon: any }> = {
+      "Pendente": { bg: "bg-yellow-100", text: "text-yellow-700", icon: Clock },
+      "Preparando": { bg: "bg-blue-100", text: "text-blue-700", icon: Clock },
+      "Saiu para entrega": { bg: "bg-purple-100", text: "text-purple-700", icon: TrendingUp },
+      "Entregue": { bg: "bg-green-100", text: "text-green-700", icon: CheckCircle },
+      "Cancelado": { bg: "bg-red-100", text: "text-red-700", icon: XCircle },
+    };
+    return colors[status] || colors["Pendente"];
   };
 
   if (!isAuthenticated) return null;
 
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-      {/* Mobile Header */}
-      <div className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <LayoutDashboard className="text-orange-500" />
-          <span className="text-xl font-black tracking-tighter">ADMIN</span>
-        </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 hover:bg-slate-800 rounded-lg transition">
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
+  const navItems = [
+    { id: "pedidos", label: "Pedidos", icon: ShoppingBag },
+    { id: "cardapio", label: "Cardápio", icon: Utensils },
+    { id: "categorias", label: "Categorias", icon: Tags },
+    { id: "relatorios", label: "Relatórios", icon: BarChart3 },
+  ];
 
-      {/* Sidebar */}
-      <aside className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white p-6 flex flex-col transition-transform duration-300 md:relative md:translate-x-0",
-        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <div className="flex items-center gap-2 mb-12">
-          <LayoutDashboard className="text-orange-500" />
-          <span className="text-xl font-black tracking-tighter uppercase">Baianinha Admin</span>
+  return (
+    <div className="h-screen bg-slate-50 flex flex-col md:flex-row overflow-hidden font-sans text-slate-900">
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-72 bg-white text-slate-900 p-6 flex-col shadow-xl border-r border-orange-50">
+        <div className="flex items-center gap-3 mb-12">
+          <div className="p-2.5 bg-orange-600 rounded-xl shadow-lg shadow-orange-200">
+            <LayoutDashboard className="text-white" size={24} />
+          </div>
+          <div>
+            <span className="text-lg font-black tracking-tight block text-slate-900">BAIANINHA</span>
+            <span className="text-xs text-orange-600 font-bold uppercase tracking-widest">Admin Panel</span>
+          </div>
         </div>
-        
+
         <nav className="space-y-2 flex-1">
-          <button 
-            onClick={() => { setActiveTab("pedidos"); setIsMobileMenuOpen(false); }}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition",
-              activeTab === "pedidos" ? "bg-orange-600 text-white" : "hover:bg-slate-800 text-slate-400"
-            )}
-          >
-            <ShoppingBag size={20} /> Pedidos
-          </button>
-          <button 
-            onClick={() => { setActiveTab("cardapio"); setIsMobileMenuOpen(false); }}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition",
-              activeTab === "cardapio" ? "bg-orange-600 text-white" : "hover:bg-slate-800 text-slate-400"
-            )}
-          >
-            <Utensils size={20} /> Cardápio
-          </button>
-          <button 
-            onClick={() => { setActiveTab("relatorios"); setIsMobileMenuOpen(false); }}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition",
-              activeTab === "relatorios" ? "bg-orange-600 text-white" : "hover:bg-slate-800 text-slate-400"
-            )}
-          >
-            <BarChart3 size={20} /> Relatórios
-          </button>
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id as any)}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition duration-300 relative group",
+                activeTab === item.id
+                  ? "bg-orange-600 text-white shadow-lg shadow-orange-200"
+                  : "text-slate-500 hover:text-orange-600 hover:bg-orange-50"
+              )}
+            >
+              <item.icon size={20} />
+              {item.label}
+            </button>
+          ))}
         </nav>
 
-        <div className="mt-auto space-y-4">
-          <button 
+        <div className="space-y-3 border-t border-slate-100 pt-6">
+          <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-red-400 hover:bg-red-500/10 transition"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-red-500 hover:bg-red-50 transition duration-300"
           >
+            <LogOut size={20} />
             Sair do Painel
           </button>
-          <a href="/" className="block text-sm text-slate-500 hover:text-white transition">Voltar para o Site</a>
+          <a href="/" className="px-4 py-2 text-sm text-slate-400 hover:text-orange-600 transition duration-300 font-bold flex items-center gap-2">
+            <Home size={16} /> Voltar para o Site
+          </a>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 md:p-12 overflow-y-auto">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12 gap-4">
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 capitalize">{activeTab}</h1>
-          {activeTab === "cardapio" && (
-            <button 
-              onClick={() => { setEditingItem({ tipo: 'pizza' }); setIsModalOpen(true); }}
-              className="bg-orange-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-orange-700 transition shadow-lg shadow-orange-200"
-            >
-              <Plus size={20} /> Novo Item
-            </button>
-          )}
-        </header>
-
-        {activeTab === "relatorios" ? (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="bg-green-100 w-12 h-12 rounded-2xl flex items-center justify-center text-green-600 mb-4">
-                  <DollarSign size={24} />
-                </div>
-                <p className="text-slate-500 font-bold text-sm uppercase tracking-widest mb-1">Faturamento Total</p>
-                <h3 className="text-3xl font-black text-slate-900">R$ {stats?.totalFaturamento || 0}</h3>
-              </div>
-              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="bg-blue-100 w-12 h-12 rounded-2xl flex items-center justify-center text-blue-600 mb-4">
-                  <Package size={24} />
-                </div>
-                <p className="text-slate-500 font-bold text-sm uppercase tracking-widest mb-1">Total de Pedidos</p>
-                <h3 className="text-3xl font-black text-slate-900">{stats?.totalPedidos || 0}</h3>
-              </div>
-              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="bg-orange-100 w-12 h-12 rounded-2xl flex items-center justify-center text-orange-600 mb-4">
-                  <TrendingUp size={24} />
-                </div>
-                <p className="text-slate-500 font-bold text-sm uppercase tracking-widest mb-1">Ticket Médio</p>
-                <h3 className="text-3xl font-black text-slate-900">
-                  R$ {stats?.totalPedidos > 0 ? (stats.totalFaturamento / stats.totalPedidos).toFixed(2) : 0}
-                </h3>
-              </div>
-            </div>
-
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-              <h3 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-2">
-                <TrendingUp className="text-orange-500" /> Mais Vendidos
-              </h3>
-              <div className="space-y-4">
-                {stats?.topItens?.map((item: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
-                    <span className="font-bold text-slate-700">{item.nome}</span>
-                    <span className="font-black text-orange-600">{item.qtd} vendas</span>
-                  </div>
+      <main className="flex-1 p-6 md:p-10 mb-24 md:mb-0 overflow-y-auto bg-slate-50">
+        <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <h1 className="text-3xl font-black tracking-tighter uppercase">{navItems.find(i => i.id === activeTab)?.label}</h1>
+          {activeTab === "pedidos" && (
+            <div className="w-full md:w-auto overflow-x-auto pb-2 scrollbar-hide">
+              <div className="flex gap-2 bg-white p-1.5 rounded-2xl border border-orange-50 shadow-sm min-w-max">
+                {statusFiltros.map(status => (
+                  <button
+                    key={status}
+                    onClick={() => setFiltroStatus(status)}
+                    className={cn(
+                      "px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all whitespace-nowrap",
+                      filtroStatus === status
+                        ? "bg-orange-600 text-white shadow-md scale-105"
+                        : "text-slate-400 hover:text-orange-600 hover:bg-orange-50"
+                    )}
+                  >
+                    {status}
+                  </button>
                 ))}
               </div>
             </div>
+          )}
+
+
+          {activeTab === "cardapio" && <button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} className="bg-orange-600 text-white px-6 py-3 rounded-2xl font-black flex items-center gap-2 hover:bg-orange-700 transition shadow-lg shadow-orange-200"><Plus size={20} /> Novo Item</button>}
+        </header>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600">
+            <AlertCircle size={20} />
+            <span className="font-bold">{error}</span>
           </div>
-        ) : activeTab === "pedidos" ? (
-          <div className="grid gap-6">
-            {pedidos.length === 0 ? (
-              <div className="bg-white p-12 rounded-3xl text-center border border-slate-200">
-                <p className="text-slate-400 font-medium">Nenhum pedido recebido ainda.</p>
+        )}
+
+        {/* ===========================
+            PEDIDOS
+        ============================ */}
+        {activeTab === "pedidos" && (
+          <div className="space-y-6">
+            {loading && pedidos.length === 0 && (
+              <div className="text-center py-20">
+                <div className="w-12 h-12 border-4 border-orange-100 border-t-orange-600 rounded-full animate-spin mb-4 mx-auto"></div>
+                <p className="text-slate-400 font-bold">Carregando pedidos...</p>
               </div>
-            ) : (
-              pedidos.map((pedido) => (
-                <motion.div 
-                  layout key={pedido.id} 
-                  className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between gap-6 md:gap-8"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-4 mb-4">
-                      <span className="text-sm font-black text-slate-400 uppercase tracking-widest">Pedido #{pedido.id}</span>
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-xs font-bold uppercase",
-                        pedido.status === "Pendente" ? "bg-yellow-100 text-yellow-700" : 
-                        pedido.status === "Preparando" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
-                      )}>
-                        {pedido.status}
-                      </span>
-                    </div>
-                    <div className="space-y-4">
-                      {pedido.itens.map((item, idx) => (
-                        <div key={idx} className="bg-slate-50 p-4 rounded-2xl">
-                          <p className="text-slate-900 font-black">
-                            {item.qtd}x {item.isMeioAMeio ? `Meio ${item.sabor1.nome} / Meio ${item.sabor2.nome}` : item.produto.nome}
-                          </p>
-                          <div className="text-sm text-slate-500 mt-1 space-y-1">
-                            {item.borda.id !== 'nenhuma' && <p>• {item.borda.nome}</p>}
-                            {item.observacao && <p className="italic text-orange-600 font-medium">Obs: {item.observacao}</p>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end justify-between gap-4">
-                    <span className="text-3xl font-black text-slate-900">R$ {pedido.total}</span>
-                    <div className="flex gap-2">
-                      {pedido.status === "Pendente" && (
-                        <button onClick={() => updatePedidoStatus(pedido.id, "Preparando")} className="p-4 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition"><Clock size={24} /></button>
-                      )}
-                      {pedido.status === "Preparando" && (
-                        <button onClick={() => updatePedidoStatus(pedido.id, "Entregue")} className="p-4 bg-green-50 text-green-600 rounded-2xl hover:bg-green-100 transition"><CheckCircle size={24} /></button>
-                      )}
-                      <button onClick={() => updatePedidoStatus(pedido.id, "Cancelado")} className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition"><XCircle size={24} /></button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
             )}
+            {pedidos.length === 0 && !loading && (
+              <div className="text-center py-12 bg-white rounded-3xl border border-orange-50 shadow-sm">
+                <ShoppingBag size={48} className="mx-auto text-slate-200 mb-4" />
+                <p className="text-slate-400 font-bold">Nenhum pedido recebido ainda</p>
+              </div>
+            )}
+            {pedidosFiltrados.map((pedido) => {
+              const statusColor = getStatusColor(pedido.status);
+              const StatusIcon = statusColor.icon;
+              return (
+                <div key={pedido.id} className="bg-white p-6 md:p-8 rounded-3xl border border-orange-50 shadow-sm hover:shadow-md transition duration-300">
+                  <div className="flex flex-col md:flex-row justify-between gap-6 md:gap-8">
+                    <div className="flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+                        <span className="text-sm font-black relative left-1  text-slate-400 uppercase tracking-widest">
+                          Pedido #{pedido.id}
+                        </span>
+                        <span className={cn(
+                          "w-fit px-4 py-1.5 rounded-full text-xs font-black uppercase flex items-center gap-2  border border-black/5",
+                          statusColor.bg,
+                          statusColor.text
+                        )}>
+                          <StatusIcon size={14} /> {pedido.status}
+                        </span>
+                      </div>
+
+                      {pedido.cliente?.telefone && (
+                        <a
+                          href={`https://wa.me/55${pedido.cliente.telefone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          className="flex items-center gap-2 mx-px bg-green-50 text-green-600 px-4.5 py-1.5 rounded-t-full text-xs font-black hover:bg-green-100 transition shadow-sm border border-green-100"
+                        >
+                          <QrCode size={14} /> {pedido.cliente.nome}: {pedido.cliente.telefone}
+                        </a>
+                      )}
+
+                      <div className="space-y-3">
+                        {pedido.itens.map((item, idx) => (
+                          <div key={idx} className={`bg-slate-50 p-5 ${pedido.cliente.nome ? "rounded-x-2xl rounded-b-2xl" : "rounded-2xl"} border border-slate-100`}>
+                            <p className="text-slate-900 font-black text-lg">
+                              {item.qtd}x{" "}
+                              {item.isMeioAMeio
+                                ? `Meio ${item.sabor1?.nome || 'Sabor 1'} / Meio ${item.sabor2?.nome || 'Sabor 2'}`
+                                : item.produto?.nome || "Item"}
+                            </p>
+                            <div className="text-sm text-slate-500 mt-2 space-y-1 font-medium">
+                              {item.borda?.id !== 'nenhuma' && <p className="flex items-center gap-1.5"><ChevronRight size={12} className="text-orange-600" /> {item.borda?.nome}</p>}
+                              {item.observacao && <p className="italic text-orange-600 bg-orange-50 p-2 rounded-lg mt-2">Obs: {item.observacao}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end justify-between gap-4">
+                      <div className="text-right">
+                        <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Total do Pedido</p>
+                        <span className="text-4xl font-black text-slate-900 tracking-tighter">R$ {pedido.total}</span>
+                      </div>
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        {pedido.status === "Pendente" && (
+                          <button onClick={() => updatePedidoStatus(pedido.id, "Preparando")} className="p-4 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition shadow-sm"><Clock size={20} /></button>
+                        )}
+                        {pedido.status === "Preparando" && (
+                          <button onClick={() => updatePedidoStatus(pedido.id, "Saiu para entrega")} className="p-4 bg-purple-50 text-purple-600 rounded-2xl hover:bg-purple-100 transition shadow-sm"><TrendingUp size={20} /></button>
+                        )}
+                        {pedido.status === "Saiu para entrega" && (
+                          <button onClick={() => updatePedidoStatus(pedido.id, "Entregue")} className="p-4 bg-green-50 text-green-600 rounded-2xl hover:bg-green-100 transition shadow-sm"><CheckCircle size={20} /></button>
+                        )}
+                        <button onClick={() => updatePedidoStatus(pedido.id, "Cancelado")} className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition shadow-sm"><XCircle size={20} /></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ) : (
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm overflow-x-auto">
-            <div className="min-w-[800px]">
-              <table className="w-full text-left">
+        )}
+
+        {/* ===========================
+            CARDÁPIO
+        ============================ */}
+        {activeTab === "cardapio" && (
+          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="bg-white rounded-3xl border border-orange-50 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest">Item</th>
-                    <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest">Preço</th>
-                    <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest">Categoria</th>
-                    <th className="px-8 py-4 font-bold text-slate-400 uppercase text-xs tracking-widest text-right">Ações</th>
+                  <tr className="border-b border-slate-50 bg-slate-50/50">
+                    <th className="px-8 py-5 font-black text-slate-400 uppercase text-xs tracking-widest text-left">Item</th>
+                    <th className="px-8 py-5 font-black text-slate-400 uppercase text-xs tracking-widest text-left">Preço</th>
+                    <th className="px-8 py-5 font-black text-slate-400 uppercase text-xs tracking-widest text-left">Categoria</th>
+                    <th className="px-8 py-5 font-black text-slate-400 uppercase text-xs tracking-widest text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {menu.map((item) => (
-                    <tr key={item.id} className="border-b border-slate-50 hover:bg-slate-50 transition">
+                    <tr key={item.id} className="border-b border-slate-50 hover:bg-orange-50/30 transition duration-300 group">
                       <td className="px-8 py-6">
-                        <p className="font-bold text-slate-900">{item.nome}</p>
-                        <p className="text-sm text-slate-400">{item.descricao}</p>
+                        <p className="font-black text-slate-900 group-hover:text-orange-600 transition">{item.nome}</p>
+                        <p className="text-sm text-slate-400 font-medium">{item.descricao}</p>
                       </td>
-                      <td className="px-8 py-6 font-bold text-slate-600">R$ {item.preco}</td>
+                      <td className="px-8 py-6 font-black text-slate-900">R$ {item.preco}</td>
                       <td className="px-8 py-6">
-                        <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold uppercase">{item.categoria}</span>
+                        <span className="px-4 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-black uppercase tracking-tighter">{item.categoria}</span>
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="p-2 text-slate-400 hover:text-orange-600 transition"><Edit size={18} /></button>
-                          <button onClick={() => handleDeleteItem(item.id)} className="p-2 text-slate-400 hover:text-red-600 transition"><Trash2 size={18} /></button>
+                          <button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="p-2.5 text-slate-300 hover:text-orange-600 hover:bg-white rounded-xl transition shadow-sm"><Edit size={18} /></button>
+                          <button onClick={() => handleDeleteItem(item.id)} className="p-2.5 text-slate-300 hover:text-red-600 hover:bg-white rounded-xl transition shadow-sm"><Trash2 size={18} /></button>
                         </div>
                       </td>
                     </tr>
@@ -305,75 +499,166 @@ export default function AdminPanel() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </motion.div>
+        )}
+
+        {/* ===========================
+            CATEGORIAS
+        ============================ */}
+        {activeTab === "categorias" && (
+          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
+            <div className="bg-white p-8 rounded-3xl border border-orange-50 shadow-sm">
+              <h3 className="text-xl font-black text-slate-900 mb-6 tracking-tighter">Nova Categoria</h3>
+              <form onSubmit={handleAddCategoria} className="flex flex-col sm:flex-row gap-4">
+                <input
+                  type="text"
+                  value={novaCategoria}
+                  onChange={(e) => setNovaCategoria(e.target.value)}
+                  placeholder="Ex: Pizzas Especiais"
+                  className="flex-1 p-4 border border-slate-100 rounded-2xl bg-slate-50 text-slate-900 font-bold focus:border-orange-600 outline-none transition"
+                />
+                <button
+                  type="submit"
+                  className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-orange-700 transition shadow-lg shadow-orange-200 uppercase text-xs tracking-widest"
+                >
+                  Adicionar
+                </button>
+              </form>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {categorias.map((cat) => (
+                <motion.div
+                  key={cat.id}
+                  variants={itemVariants}
+                  className="bg-white p-6 rounded-3xl border border-orange-50 shadow-sm flex justify-between items-center group hover:border-orange-200 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-50 rounded-xl text-orange-600">
+                      <Tags size={20} />
+                    </div>
+                    <span className="font-black text-slate-900 group-hover:text-orange-600 transition">{cat.nome}</span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteCategoria(cat.id)}
+                    className="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ===========================
+            RELATÓRIOS
+        ============================ */}
+        {activeTab === "relatorios" && stats && (
+          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { label: "Faturamento", value: `R$ ${stats.faturamento}`, icon: DollarSign, color: "text-green-600", bgColor: "bg-green-50" },
+                { label: "Pedidos", value: stats.totalPedidos, icon: Package, color: "text-blue-600", bgColor: "bg-blue-50" },
+                { label: "Ticket Médio", value: `R$ ${stats.totalPedidos > 0 ? (stats.faturamento / stats.totalPedidos).toFixed(2) : 0}`, icon: TrendingUp, color: "text-orange-600", bgColor: "bg-orange-50" },
+              ].map((stat, idx) => (
+                <div key={idx} className="bg-white p-8 rounded-3xl border border-orange-50 shadow-sm">
+                  <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-sm", stat.bgColor, stat.color)}>
+                    <stat.icon size={28} />
+                  </div>
+                  <p className="text-slate-400 font-black text-xs uppercase tracking-widest mb-2">{stat.label}</p>
+                  <h3 className="text-4xl font-black text-slate-900 tracking-tighter">{stat.value}</h3>
+                </div>
+              ))}
+            </div>
+            <div className="bg-white p-8 rounded-3xl border border-orange-50 shadow-sm">
+              <h3 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-3 tracking-tighter">
+                <div className="p-2 bg-orange-50 rounded-xl text-orange-600"><TrendingUp size={24} /></div>
+                Mais Vendidos
+              </h3>
+              <div className="space-y-4">
+                {stats.topItens?.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-orange-200 transition">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-orange-600 text-sm shadow-sm border border-orange-50">{idx + 1}</div>
+                      <p className="font-black text-slate-900 group-hover:text-orange-600 transition">{item.nome}</p>
+                    </div>
+                    <span className="text-orange-600 font-black text-sm md:text-lg px-5 py-2 bg-white rounded-xl border border-orange-50 shadow-sm">{item.qtd}x</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         )}
       </main>
 
-      {/* Modal de Edição de Item */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-8 md:p-12 shadow-2xl">
-            <h2 className="text-3xl font-black mb-8 tracking-tighter">
-              {editingItem?.id ? "Editar Item" : "Novo Item"}
-            </h2>
-            <form onSubmit={handleSaveItem} className="space-y-6">
-              <div>
-                <label className="block text-sm font-bold text-slate-500 uppercase mb-2">Nome</label>
-                <input 
-                  className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-orange-600 outline-none font-bold"
-                  value={editingItem?.nome || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, nome: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+      {/* Mobile Bottom Tab Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-orange-50 px-4 py-4 flex justify-between items-center z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id as any)}
+            className={cn(
+              "flex flex-col items-center gap-1.5 transition-all duration-300",
+              activeTab === item.id ? "text-orange-600 scale-110" : "text-slate-400"
+            )}
+          >
+            <item.icon size={22} />
+            <span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span>
+            {activeTab === item.id && (
+              <motion.div layoutId="activeDot" className="w-4 h-1 bg-orange-600 rounded-full" />
+            )}
+          </button>
+        ))}
+        <button onClick={handleLogout} className="flex flex-col items-center gap-1.5 text-red-400">
+          <LogOut size={22} />
+          <span className="text-[9px] font-black uppercase tracking-widest">Sair</span>
+        </button>
+      </nav>
+
+      {/* Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/40 z-60 flex items-center justify-center p-4 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white p-8 rounded-[2.5rem] w-full max-w-lg relative border border-orange-50 shadow-2xl">
+              <button onClick={() => { setIsModalOpen(false); setEditingItem(null); }} className="absolute top-6 right-6 text-slate-300 hover:text-red-500 p-2 bg-slate-50 rounded-full transition"><X size={20} /></button>
+              <h2 className="text-3xl font-black mb-8 text-slate-900 tracking-tighter">{editingItem?.id ? "Editar Item" : "Novo Item"}</h2>
+              <form onSubmit={handleSaveItem} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-bold text-slate-500 uppercase mb-2">Preço (R$)</label>
-                  <input 
-                    type="number"
-                    className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-orange-600 outline-none font-bold"
-                    value={editingItem?.preco || ""}
-                    onChange={(e) => setEditingItem({ ...editingItem, preco: Number(e.target.value) })}
-                    required
-                  />
+                  <label className="block mb-2 font-black text-slate-400 text-xs uppercase tracking-widest">Nome do Produto</label>
+                  <input type="text" value={editingItem?.nome || ""} onChange={e => setEditingItem(prev => ({ ...prev, nome: e.target.value }))} className="w-full p-4 border border-slate-100 rounded-2xl bg-slate-50 text-slate-900 font-bold focus:border-orange-600 outline-none transition" placeholder="Ex: Pizza de Calabresa" required />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block mb-2 font-black text-slate-400 text-xs uppercase tracking-widest">Preço (R$)</label>
+                    <input type="number" step="0.01" value={editingItem?.preco || ""} onChange={e => setEditingItem(prev => ({ ...prev, preco: Number(e.target.value) }))} className="w-full p-4 border border-slate-100 rounded-2xl bg-slate-50 text-slate-900 font-bold focus:border-orange-600 outline-none transition" placeholder="0.00" required />
+                  </div>
+                  <div>
+                    <label className="block mb-2 font-black text-slate-400 text-xs uppercase tracking-widest">Categoria</label>
+                    <select
+                      value={editingItem?.categoria || (categorias[0]?.nome || "")}
+                      onChange={e => setEditingItem(prev => ({ ...prev, categoria: e.target.value }))}
+                      className="w-full p-4 border border-slate-100 rounded-2xl bg-slate-50 text-slate-900 font-bold focus:border-orange-600 outline-none transition"
+                    >
+                      {categorias.map(cat => (
+                        <option key={cat.id} value={cat.nome}>{cat.nome}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-500 uppercase mb-2">Tipo</label>
-                  <select 
-                    className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-orange-600 outline-none font-bold"
-                    value={editingItem?.tipo || "pizza"}
-                    onChange={(e) => setEditingItem({ ...editingItem, tipo: e.target.value as any })}
-                  >
-                    <option value="pizza">Pizza</option>
-                    <option value="bebida">Bebida</option>
-                  </select>
+                  <label className="block mb-2 font-black text-slate-400 text-xs uppercase tracking-widest">Descrição</label>
+                  <textarea value={editingItem?.descricao || ""} onChange={e => setEditingItem(prev => ({ ...prev, descricao: e.target.value }))} className="w-full p-4 border border-slate-100 rounded-2xl bg-slate-50 text-slate-900 font-bold focus:border-orange-600 outline-none transition resize-none" rows={3} placeholder="Descreva os ingredientes..." />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-500 uppercase mb-2">Categoria</label>
-                <input 
-                  className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-orange-600 outline-none font-bold"
-                  value={editingItem?.categoria || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, categoria: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-500 uppercase mb-2">Descrição</label>
-                <textarea 
-                  className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-orange-600 outline-none font-medium h-24"
-                  value={editingItem?.descricao || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, descricao: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 font-bold text-slate-400 hover:text-slate-600 transition">Cancelar</button>
-                <button type="submit" className="flex-1 bg-orange-600 text-white py-4 rounded-2xl font-black hover:bg-orange-700 transition shadow-lg shadow-orange-200">Salvar</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-slate-50">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-4 rounded-full bg-slate-100 font-black text-slate-500 hover:bg-slate-200 transition text-sm uppercase tracking-widest">Cancelar</button>
+                  <button type="submit" className="px-8 py-4 rounded-full bg-orange-600 text-white font-black hover:bg-orange-700 transition shadow-lg shadow-orange-200 text-sm uppercase tracking-widest">Salvar Item</button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
