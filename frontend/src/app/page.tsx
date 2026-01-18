@@ -9,8 +9,8 @@ import { PedidoConfirmado } from "@/components/PedidoConfirmado";
 import { ModalIdentificacao } from "@/components/ModalIdentificacao";
 
 interface IProduto {
-  _id: any; // Ajustado para aceitar o formato do MongoDB
-  id: any;  // Compatibilidade
+  _id: any;
+  id: any;
   nome: string;
   preco: number;
   descricao: string;
@@ -261,7 +261,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    const checar = () => setIsAberto(verificarHorarioFuncionamento("18:00", "23:00"));
+    const checar = () => setIsAberto(verificarHorarioFuncionamento("12:00", "23:00"));
     checar();
     const interval = setInterval(checar, 60000);
     return () => clearInterval(interval);
@@ -321,14 +321,26 @@ export default function Home() {
             <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-4">Nosso Cardápio</h2>
             <p className="text-gray-500 max-w-md">Escolha entre nossas pizzas artesanais, preparadas com ingredientes frescos e selecionados.</p>
           </div>
-          <div className="w-full md:w-auto overflow-x-auto pb-4 scrollbar-hide">
+          <div
+            className="w-full md:w-auto overflow-x-auto pb-4"
+            style={{
+              msOverflowStyle: 'none',
+              scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch' // Melhora o scroll no iPhone
+            }}
+          >
+            {/* Esconde para navegadores Webkit (Chrome/Safari) */}
+            <style dangerouslySetInnerHTML={{
+              __html: `
+    div::-webkit-scrollbar { display: none; }
+  `}} />
             <div className="flex gap-3 min-w-max px-1">
               {categorias.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setFiltro(cat)}
                   className={cn(
-                    "px-8 py-2 md:py-3 rounded-full font-bold transition-all whitespace-nowrap border-2",
+                    "px-6 py-2 md:py-3 rounded-full font-bold transition-all whitespace-nowrap border-2",
                     filtro === cat
                       ? "bg-orange-600 text-white border-orange-600 shadow-lg shadow-orange-200 scale-105"
                       : "bg-white text-gray-500 border-gray-100 hover:border-orange-200 hover:text-orange-600"
@@ -347,7 +359,16 @@ export default function Home() {
             {menuFiltrado.map((produto) => (
               <motion.div key={String(produto._id || produto.id)} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-500 group flex flex-col h-full">
                 <div className="relative h-64 overflow-hidden">
-                  <div className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1574126154517-d1e0d89ef734?auto=format&fit=crop&q=80')" }} />
+                  <div className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700"
+                    style={{
+                      backgroundImage:
+                        produto.categoria === 'Bebidas'
+                          ? "url('https://cdn.pixabay.com/photo/2017/01/07/13/22/cola-1960326_1280.jpg' )"
+                          : produto.categoria === 'Pizzas Doces'
+                            ? "url('https://images.pexels.com/photos/17637080/pexels-photo-17637080.png' )"
+                            : "url('https://images.unsplash.com/photo-1574126154517-d1e0d89ef734?auto=format&fit=crop&q=80' )"
+                    }}
+                  />
                   <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-black text-orange-600 uppercase">{produto.categoria}</div>
                 </div>
                 <div className="p-8 flex flex-col flex-1">
@@ -356,7 +377,13 @@ export default function Home() {
                     <span className="text-xl font-black text-orange-600 whitespace-nowrap">R$ {produto.preco}</span>
                   </div>
                   <p className="text-gray-500 text-sm leading-relaxed mb-8 line-clamp-2">{produto.descricao}</p>
-                  <button onClick={() => abrirPersonalizacao(produto)} disabled={!isAberto} className={`mt-auto w-full ${isAberto ? 'bg-slate-900 hover:bg-orange-600' : 'bg-gray-300'} text-white py-4 cursor-pointer rounded-2xl font-bold transition-all flex items-center justify-center gap-2`}><Plus className="w-5 h-5" /> {produto.tipo === 'pizza' ? 'Personalizar' : 'Adicionar ao Pedido'}</button>
+                  <button onClick={() => {
+                    if (produto.categoria === 'Bebidas') {
+                      setProdutoSelecionado(produto);
+                      adicionarAoCarrinho();
+                    };
+                    if (produto.categoria !== 'Bebidas') abrirPersonalizacao(produto);
+                  }} disabled={!isAberto} className={`mt-auto w-full ${isAberto ? 'bg-slate-900 hover:bg-orange-600' : 'bg-gray-300'} text-white py-4 cursor-pointer rounded-2xl font-bold transition-all flex items-center justify-center gap-2`}><Plus className="w-5 h-5" /> {produto.categoria === 'Bebidas' ? 'Adicionar ao Pedido' : 'Personalizar'}</button>
                 </div>
               </motion.div>
             ))}
@@ -368,12 +395,32 @@ export default function Home() {
       <AnimatePresence>
         {isModalOpen && produtoSelecionado && (
           <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setIsModalOpen(false); document.body.style.overflow = "auto"; }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => {
+
+              setIsModalOpen(false);
+              document.body.style.overflow = "auto";
+              setProdutoSelecionado(null)
+              setIsMeioAMeio(false);
+              setSabor2(null);
+              setBordaSelecionada(BORDAS[0]);
+              setObservacao("");
+
+            }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden">
               <div className="p-8 max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-start mb-6">
                   <div><h2 className="text-3xl font-black tracking-tight">Personalizar</h2><p className="text-gray-500">{produtoSelecionado.nome}</p></div>
-                  <button onClick={() => { setIsModalOpen(false); document.body.style.overflow = "auto"; }} className="p-2 hover:bg-gray-100 rounded-full transition"><X size={24} /></button>
+                  <button onClick={() => {
+
+                    setIsModalOpen(false);
+                    document.body.style.overflow = "auto";
+                    setProdutoSelecionado(null)
+                    setIsMeioAMeio(false);
+                    setSabor2(null);
+                    setBordaSelecionada(BORDAS[0]);
+                    setObservacao("");
+
+                  }} className="p-2 hover:bg-gray-100 rounded-full transition"><X size={24} /></button>
                 </div>
 
                 {produtoSelecionado.tipo === 'pizza' && (

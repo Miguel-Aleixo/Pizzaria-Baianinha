@@ -121,6 +121,7 @@ export default function AdminPanel() {
   const [error, setError] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<string>("Todos");
   const statusFiltros = ["Todos", "Pendente", "Preparando", "Saiu para entrega", "Entregue", "Cancelado"];
+  const [editingCategoria, setEditingCategoria] = useState<Categoria | null>(null); // Adicione esta linha
 
   const pedidosFiltrados = filtroStatus === "Todos"
     ? pedidos
@@ -239,14 +240,31 @@ export default function AdminPanel() {
     e.preventDefault();
     if (!novaCategoria.trim()) return;
 
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/categorias`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("admin-token")}` },
-      body: JSON.stringify({ nome: novaCategoria }),
-    });
+    if (editingCategoria) {
+      // Lógica para Atualizar
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/categorias/${editingCategoria.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("admin-token")}` },
+        body: JSON.stringify({ nome: novaCategoria }),
+      });
+      setEditingCategoria(null);
+    } else {
+      // Lógica para Criar (já existente)
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/categorias`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("admin-token")}` },
+        body: JSON.stringify({ nome: novaCategoria }),
+      });
+    }
 
     setNovaCategoria("");
     fetchData();
+  };
+
+  const handleEditCategoria = (cat: Categoria) => {
+    setEditingCategoria(cat);
+    setNovaCategoria(cat.nome);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDeleteCategoria = async (id: string) => {
@@ -342,7 +360,12 @@ export default function AdminPanel() {
         <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <h1 className="text-3xl font-black tracking-tighter uppercase">{navItems.find(i => i.id === activeTab)?.label}</h1>
           {activeTab === "pedidos" && (
-            <div className="w-full md:w-auto overflow-x-auto pb-2 scrollbar-hide">
+            <div className="w-full md:w-auto overflow-x-auto pb-2 scrollbar-hide"
+              style={{
+                msOverflowStyle: 'none',
+                scrollbarWidth: 'none',
+                WebkitOverflowScrolling: 'touch' // Melhora o scroll no iPhone
+              }}>
               <div className="flex gap-2 bg-white p-1.5 rounded-2xl border border-orange-50 shadow-sm min-w-max">
                 {statusFiltros.map(status => (
                   <button
@@ -452,7 +475,10 @@ export default function AdminPanel() {
                         {pedido.status === "Saiu para entrega" && (
                           <button onClick={() => updatePedidoStatus(pedido.id, "Entregue")} className="p-4 bg-green-50 text-green-600 rounded-2xl hover:bg-green-100 transition shadow-sm"><CheckCircle size={20} /></button>
                         )}
-                        <button onClick={() => updatePedidoStatus(pedido.id, "Cancelado")} className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition shadow-sm"><XCircle size={20} /></button>
+                        {pedido.status === "Entregue" && (
+                          ''
+                        )}
+                        <button onClick={() => updatePedidoStatus(pedido.id, "Cancelado")} className={`${pedido.status === "Entregue" && 'hidden'} p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition shadow-sm`}><XCircle size={20} /></button>
                       </div>
                     </div>
                   </div>
@@ -485,7 +511,7 @@ export default function AdminPanel() {
                         <p className="text-sm text-slate-400 font-medium">{item.descricao}</p>
                       </td>
                       <td className="px-8 py-6 font-black text-slate-900">R$ {item.preco}</td>
-                      <td className="px-8 py-6">
+                      <td className="px-8 py-6 ">
                         <span className="px-4 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-black uppercase tracking-tighter">{item.categoria}</span>
                       </td>
                       <td className="px-8 py-6 text-right">
@@ -508,7 +534,9 @@ export default function AdminPanel() {
         {activeTab === "categorias" && (
           <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
             <div className="bg-white p-8 rounded-3xl border border-orange-50 shadow-sm">
-              <h3 className="text-xl font-black text-slate-900 mb-6 tracking-tighter">Nova Categoria</h3>
+              <h3 className="text-xl font-black text-slate-900 mb-6 tracking-tighter">
+                {editingCategoria ? "Editar Categoria" : "Nova Categoria"}
+              </h3>
               <form onSubmit={handleAddCategoria} className="flex flex-col sm:flex-row gap-4">
                 <input
                   type="text"
@@ -517,12 +545,23 @@ export default function AdminPanel() {
                   placeholder="Ex: Pizzas Especiais"
                   className="flex-1 p-4 border border-slate-100 rounded-2xl bg-slate-50 text-slate-900 font-bold focus:border-orange-600 outline-none transition"
                 />
-                <button
-                  type="submit"
-                  className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-orange-700 transition shadow-lg shadow-orange-200 uppercase text-xs tracking-widest"
-                >
-                  Adicionar
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-orange-700 transition shadow-lg shadow-orange-200 uppercase text-xs tracking-widest flex-1 sm:flex-none"
+                  >
+                    {editingCategoria ? "Salvar" : "Adicionar"}
+                  </button>
+                  {editingCategoria && (
+                    <button
+                      type="button"
+                      onClick={() => { setEditingCategoria(null); setNovaCategoria(""); }}
+                      className="bg-slate-100 text-slate-500 px-8 py-4 rounded-2xl font-black hover:bg-slate-200 transition uppercase text-xs tracking-widest"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
 
@@ -539,12 +578,20 @@ export default function AdminPanel() {
                     </div>
                     <span className="font-black text-slate-900 group-hover:text-orange-600 transition">{cat.nome}</span>
                   </div>
-                  <button
-                    onClick={() => handleDeleteCategoria(cat.id)}
-                    className="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => handleEditCategoria(cat)}
+                      className="p-2 text-slate-300 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition"
+                    >
+                      <Edit size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategoria(cat.id)}
+                      className="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </motion.div>
               ))}
             </div>
