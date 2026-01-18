@@ -519,7 +519,7 @@ export default function Home() {
               <AnimatePresence>
                 {checkoutOpen && (
                   <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 260, damping: 28 }} className="absolute bottom-0 left-0 right-0 z-40 bg-white border-t border-orange-200 rounded-t-3xl p-6">
-                    <div className="overflow-auto max-h-[90vh]">
+                    <div className="overflow-auto max-h-[85vh] md:max-h-[90vh]">
                       <div className="flex justify-center"><button onClick={() => setCheckoutOpen(false)} className="absolute -top-5 z-100 bg-orange-100 text-orange-600 p-2 rounded-full"><ChevronDown size={22} /></button></div>
                       <div className="flex gap-3 mb-6">
                         {["entrega", "retirada"].map(opcao => (
