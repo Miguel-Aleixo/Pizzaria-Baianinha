@@ -261,7 +261,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    const checar = () => setIsAberto(verificarHorarioFuncionamento("00:00", "23:59"));
+    const checar = () => setIsAberto(verificarHorarioFuncionamento("18:00", "23:00"));
     checar();
     const interval = setInterval(checar, 60000);
     return () => clearInterval(interval);
