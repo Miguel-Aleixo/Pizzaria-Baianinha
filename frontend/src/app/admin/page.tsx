@@ -305,6 +305,26 @@ export default function AdminPanel() {
     fetchData();
   };
 
+  const handleDeletePedido = async (id: string) => {
+    const confirmacao = confirm(
+      "Tem certeza que deseja excluir este pedido? Essa ação não pode ser desfeita."
+    );
+
+    if (!confirmacao) return;
+
+    await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"}/api/pedidos/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin-token")}`,
+        },
+      }
+    );
+
+    fetchData();
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, { bg: string; text: string; icon: any }> = {
       "Pendente": { bg: "bg-yellow-100", text: "text-yellow-700", icon: Clock },
@@ -514,19 +534,54 @@ export default function AdminPanel() {
                       </div>
                       <div className="flex gap-2 flex-wrap justify-end">
                         {pedido.status === "Pendente" && (
-                          <button onClick={() => updatePedidoStatus(pedido.id, "Preparando")} className="p-4 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition shadow-sm"><Clock size={20} /></button>
+                          <button
+                            onClick={() => updatePedidoStatus(pedido.id, "Preparando")}
+                            className="p-4 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition shadow-sm"
+                          >
+                            <Clock size={20} />
+                          </button>
                         )}
+
                         {pedido.status === "Preparando" && (
-                          <button onClick={() => updatePedidoStatus(pedido.id, "Saiu para entrega")} className="p-4 bg-purple-50 text-purple-600 rounded-2xl hover:bg-purple-100 transition shadow-sm"><TrendingUp size={20} /></button>
+                          <button
+                            onClick={() => updatePedidoStatus(pedido.id, "Saiu para entrega")}
+                            className="p-4 bg-purple-50 text-purple-600 rounded-2xl hover:bg-purple-100 transition shadow-sm"
+                          >
+                            <TrendingUp size={20} />
+                          </button>
                         )}
+
                         {pedido.status === "Saiu para entrega" && (
-                          <button onClick={() => updatePedidoStatus(pedido.id, "Entregue")} className="p-4 bg-green-50 text-green-600 rounded-2xl hover:bg-green-100 transition shadow-sm"><CheckCircle size={20} /></button>
+                          <button
+                            onClick={() => updatePedidoStatus(pedido.id, "Entregue")}
+                            className="p-4 bg-green-50 text-green-600 rounded-2xl hover:bg-green-100 transition shadow-sm"
+                          >
+                            <CheckCircle size={20} />
+                          </button>
                         )}
-                        {pedido.status === "Entregue" && (
-                          ''
+
+                        {pedido.status !== "Entregue" && (
+                          <button
+                            onClick={() => updatePedidoStatus(pedido.id, "Cancelado")}
+                            className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition shadow-sm"
+                            title="Cancelar pedido"
+                          >
+                            <XCircle size={20} />
+                          </button>
                         )}
-                        <button onClick={() => updatePedidoStatus(pedido.id, "Cancelado")} className={`${pedido.status === "Entregue" && 'hidden'} p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition shadow-sm`}><XCircle size={20} /></button>
+
+                        {/* 🔥 EXCLUIR — SOMENTE SE CANCELADO OU PENDENTE */}
+                        {["Cancelado", "Pendente"].includes(pedido.status) && (
+                          <button
+                            onClick={() => handleDeletePedido(pedido.id)}
+                            className="p-4 bg-slate-100 text-slate-500 rounded-2xl hover:bg-red-50 hover:text-red-600 transition shadow-sm"
+                            title="Excluir pedido"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        )}
                       </div>
+
                     </div>
                   </div>
                 </div>
