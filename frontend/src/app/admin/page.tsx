@@ -774,6 +774,7 @@ export default function AdminPanel() {
                       </div>
                     )}
                     <input
+                      ref={fileInputRef}
                       type="file"
                       accept="image/*"
                       onChange={handleImageUpload}
