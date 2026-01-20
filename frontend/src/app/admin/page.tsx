@@ -744,42 +744,53 @@ export default function AdminPanel() {
                   <label className="block mb-2 font-black text-slate-400 text-xs uppercase tracking-widest w-full">
                     Imagem do Produto
                   </label>
-                  <div className="relative group w-full h-15   bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 hover:border-orange-600 transition-all overflow-hidden flex items-center justify-center">
+                  <div className="relative group w-full h-15 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 hover:border-orange-600 transition-all overflow-hidden flex items-center justify-center">
+
                     {editingItem?.imagem ? (
                       <>
-                        <img src={editingItem.imagem} alt="Preview" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                          <div className="flex flex-col items-center text-white">
+                        <img
+                          src={editingItem.imagem}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-6 z-10">
+                          <div
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex flex-col items-center text-white cursor-pointer"
+                          >
                             <Upload size={32} />
                             <span className="text-[10px] font-black uppercase mt-1">Trocar</span>
                           </div>
+
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveImage();
-                            }}
+                            onClick={handleRemoveImage}
                             className="flex flex-col items-center text-red-400 hover:text-red-500 transition-colors"
                           >
                             <Trash2 size={32} />
                             <span className="text-[10px] font-black uppercase mt-1">Remover</span>
                           </button>
-
                         </div>
                       </>
                     ) : (
-                      <div className="flex flex-col items-center text-slate-400 group-hover:text-orange-600 transition-colors">
-                        <ImageIcon size={15} className="mb-2" />
-                        <span className="text-xs font-bold uppercase tracking-widest">Clique para enviar</span>
-                      </div>
+                      <>
+                        <div className="flex flex-col items-center text-slate-400 group-hover:text-orange-600 transition-colors">
+                          <ImageIcon size={15} className="mb-2" />
+                          <span className="text-xs font-bold uppercase tracking-widest">
+                            Clique para enviar
+                          </span>
+                        </div>
+
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                        />
+                      </>
                     )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
