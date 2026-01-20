@@ -25,9 +25,10 @@ interface IProduto {
   categoria: string;
   tipo: 'pizza' | 'bebida';
   imagem?: string;
-  imagemFile?: File;
+  imagemFile?: string;
+  file?: File;
+  removeImagem?: boolean;
 }
-
 
 interface PedidoItem {
   id?: string;
@@ -136,35 +137,6 @@ export default function AdminPanel() {
 
   const router = useRouter();
 
-  useEffect(() => {
-    const token = localStorage.getItem("admin-token");
-    if (!token) {
-      router.push("/admin/login");
-    } else {
-      setIsAuthenticated(true);
-      fetchData();
-
-      // Atualização automática a cada 30 segundos para novos pedidos
-      const interval = setInterval(() => {
-        fetchData(true); // Passamos true para não mostrar o loading de tela cheia
-      }, 30000);
-
-      return () => clearInterval(interval);
-    }
-  }, []);
-
-  // Recarregar dados sempre que mudar de aba
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchData(true);
-    }
-  }, [activeTab]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("admin-token");
-    router.push("/admin/login");
-  };
-
   const fetchData = async (isSilent = false) => {
     try {
       if (!isSilent) setLoading(true);
@@ -203,6 +175,35 @@ export default function AdminPanel() {
     }
   };
 
+  useEffect(() => {
+    const token = localStorage.getItem("admin-token");
+    if (!token) {
+      router.push("/admin/login");
+    } else {
+      setIsAuthenticated(true);
+      fetchData();
+
+      // Atualização automática a cada 30 segundos para novos pedidos
+      const interval = setInterval(() => {
+        fetchData(true); // Passamos true para não mostrar o loading de tela cheia
+      }, 30000);
+
+      return () => clearInterval(interval);
+    }
+  }, []);
+
+  // Recarregar dados sempre que mudar de aba
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchData(true);
+    }
+  }, [activeTab]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("admin-token");
+    router.push("/admin/login");
+  };
+
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
@@ -213,22 +214,25 @@ export default function AdminPanel() {
     formData.append("nome", editingItem.nome || "");
     formData.append("preco", String(editingItem.preco || 0));
     formData.append("descricao", editingItem.descricao || "");
-    formData.append("categoria", editingItem.categoria || categorias[0]?.nome);
+    formData.append("categoria", editingItem.categoria || "");
     formData.append("tipo", editingItem.tipo || "pizza");
 
-    if (editingItem.imagemFile) {
-      formData.append("imagem", editingItem.imagemFile); // 👈 nome TEM que ser "imagem"
+    if (editingItem.removeImagem) {
+      formData.append("removeImagem", "true");
+    }
+
+    if (editingItem.file) {
+      formData.append("imagem", editingItem.file);
     }
 
     const url = isEdit
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"}/api/menu/${editingItem.id}`
-      : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"}/api/menu`;
+      ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu/${editingItem.id}`
+      : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu`;
 
     await fetch(url, {
       method: isEdit ? "PUT" : "POST",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("admin-token")}`,
-        // ⚠️ NÃO definir Content-Type
       },
       body: formData,
     });
@@ -325,30 +329,31 @@ export default function AdminPanel() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setEditingItem(prev => ({
         ...prev,
-        imagem: reader.result as string,
-        imagemFile: file, // 🔥 guarda o File
+        imagem: reader.result as string, // preview
+        file,                            // arquivo real
+        removeImagem: false,             // cancela remoção
       }));
     };
+
     reader.readAsDataURL(file);
   };
 
-  const handleRemoveImage = () => {
+
+  const handleRemoveImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     setEditingItem(prev => ({
       ...prev,
       imagem: "",
-      imagemFile: undefined,
+      imagemId: "",
+      removeImagem: true, // 👈 avisa o backend
     }));
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
-
 
   return (
     <div className="h-screen bg-slate-50 flex flex-col md:flex-row overflow-hidden font-sans text-slate-900">

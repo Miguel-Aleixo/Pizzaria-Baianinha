@@ -56,34 +56,44 @@ router.post(
 // UPDATE
 router.put(
   "/:id",
-  upload.single("imagem"),
   auth,
+  upload.single("imagem"),
   async (req, res) => {
     const item = await Menu.findById(req.params.id);
-    if (!item) return res.status(404).json({ message: "Item não encontrado" });
-
-    // se mandou nova imagem, apaga a antiga
-    if (req.file && item.imagemId) {
-      await cloudinary.uploader.destroy(item.imagemId);
+    if (!item) {
+      return res.status(404).json({ message: "Item não encontrado" });
     }
 
-    const data = {
-      ...req.body,
-      ...(req.file && {
-        imagem: req.file.path,
-        imagemId: req.file.filename,
-      }),
-    };
+    // 🔥 REMOVE IMAGEM
+    if (req.body.removeImagem === "true" && item.imagemId) {
+      await cloudinary.uploader.destroy(item.imagemId);
+      item.imagem = null;
+      item.imagemId = null;
+    }
 
-    const updated = await Menu.findByIdAndUpdate(
-      req.params.id,
-      data,
-      { new: true }
-    );
+    // 🔁 NOVA IMAGEM
+    if (req.file) {
+      if (item.imagemId) {
+        await cloudinary.uploader.destroy(item.imagemId);
+      }
 
-    res.json({ data: updated });
+      item.imagem = req.file.path;
+      item.imagemId = req.file.filename;
+    }
+
+    // ✍️ OUTROS CAMPOS
+    item.nome = req.body.nome;
+    item.preco = req.body.preco;
+    item.descricao = req.body.descricao;
+    item.categoria = req.body.categoria;
+    item.tipo = req.body.tipo;
+
+    await item.save();
+
+    res.json({ data: item });
   }
 );
+
 
 // DELETE
 router.delete("/:id", auth, async (req, res) => {
