@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { useRef } from "react";
 
 interface Categoria {
   id: string;
@@ -319,6 +320,8 @@ export default function AdminPanel() {
     { id: "relatorios", label: "Relatórios", icon: BarChart3 },
   ];
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -335,16 +338,18 @@ export default function AdminPanel() {
     reader.readAsDataURL(file);
   };
 
-  const handleRemoveImage = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  const handleRemoveImage = () => {
     setEditingItem(prev => ({
       ...prev,
       imagem: "",
       imagemFile: undefined,
     }));
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
+
 
   return (
     <div className="h-screen bg-slate-50 flex flex-col md:flex-row overflow-hidden font-sans text-slate-900">
@@ -750,12 +755,17 @@ export default function AdminPanel() {
                             <span className="text-[10px] font-black uppercase mt-1">Trocar</span>
                           </div>
                           <button
-                            onClick={handleRemoveImage}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation(); 
+                              handleRemoveImage();
+                            }}
                             className="flex flex-col items-center text-red-400 hover:text-red-500 transition-colors"
                           >
                             <Trash2 size={32} />
                             <span className="text-[10px] font-black uppercase mt-1">Remover</span>
                           </button>
+
                         </div>
                       </>
                     ) : (
