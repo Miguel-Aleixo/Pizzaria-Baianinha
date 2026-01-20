@@ -114,6 +114,7 @@ const itemVariants = {
 
 
 export default function AdminPanel() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<"pedidos" | "cardapio" | "categorias" | "relatorios">("pedidos");
   const [menu, setMenu] = useState<IProduto[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -320,8 +321,6 @@ export default function AdminPanel() {
     { id: "relatorios", label: "Relatórios", icon: BarChart3 },
   ];
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -440,8 +439,8 @@ export default function AdminPanel() {
         )}
 
         {/* ===========================
-            PEDIDOS
-        ============================ */}
+              PEDIDOS
+          ============================ */}
         {activeTab === "pedidos" && (
           <div className="space-y-6">
             {loading && pedidos.length === 0 && (
@@ -532,8 +531,8 @@ export default function AdminPanel() {
         )}
 
         {/* ===========================
-            CARDÁPIO
-        ============================ */}
+              CARDÁPIO
+          ============================ */}
         {activeTab === "cardapio" && (
           <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
 
@@ -593,8 +592,8 @@ export default function AdminPanel() {
         )}
 
         {/* ===========================
-            CATEGORIAS
-        ============================ */}
+              CATEGORIAS
+          ============================ */}
         {activeTab === "categorias" && (
           <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
             <div className="bg-white p-8 rounded-3xl border border-orange-50 shadow-sm">
@@ -663,8 +662,8 @@ export default function AdminPanel() {
         )}
 
         {/* ===========================
-            RELATÓRIOS
-        ============================ */}
+              RELATÓRIOS
+          ============================ */}
         {activeTab === "relatorios" && stats && (
           <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -757,7 +756,7 @@ export default function AdminPanel() {
                           <button
                             type="button"
                             onClick={(e) => {
-                              e.stopPropagation(); 
+                              e.stopPropagation();
                               handleRemoveImage();
                             }}
                             className="flex flex-col items-center text-red-400 hover:text-red-500 transition-colors"
