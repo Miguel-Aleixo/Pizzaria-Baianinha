@@ -361,13 +361,15 @@ export default function Home() {
                 <div className="relative h-64 overflow-hidden">
                   <div className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700"
                     style={{
-                      backgroundImage:
-                        produto.categoria === 'Bebidas'
-                          ? "url('https://cdn.pixabay.com/photo/2017/01/07/13/22/cola-1960326_1280.jpg' )"
+                      backgroundImage: produto.imagem
+                        ? `url('${produto.imagem}')`
+                        : produto.categoria === 'Bebidas'
+                          ? "url('https://cdn.pixabay.com/photo/2017/01/07/13/22/cola-1960326_1280.jpg')"
                           : produto.categoria === 'Pizzas Doces'
-                            ? "url('https://images.pexels.com/photos/17637080/pexels-photo-17637080.png' )"
-                            : "url('https://images.unsplash.com/photo-1574126154517-d1e0d89ef734?auto=format&fit=crop&q=80' )"
+                            ? "url('https://images.pexels.com/photos/17637080/pexels-photo-17637080.png')"
+                            : "url('https://images.unsplash.com/photo-1574126154517-d1e0d89ef734?auto=format&fit=crop&q=80')"
                     }}
+
                   />
                   <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-black text-orange-600 uppercase">{produto.categoria}</div>
                 </div>
@@ -483,7 +485,7 @@ export default function Home() {
       <AnimatePresence>
         {isCartOpen && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setIsCartOpen(false);  document.body.style.overflow = "auto"; }} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setIsCartOpen(false); document.body.style.overflow = "auto"; }} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-60 shadow-2xl flex flex-col">
               <div className="p-8 border-b border-orange-200 flex justify-between items-center">
                 <h2 className="text-2xl font-black tracking-tight">Seu Pedido</h2>
