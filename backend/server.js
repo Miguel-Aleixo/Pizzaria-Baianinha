@@ -100,7 +100,7 @@ app.patch("/api/pedidos/:id/status", auth, async (req, res) => {
   const pedido = await Pedido.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
 
   enviarMensagemTelegram(pedido);
-  
+
   // GATILHO PARA O SEU BOT
   console.log(`[BOT] Pedido #${pedido._id} mudou para: ${pedido.status}. Notificando ${pedido.cliente?.telefone}`);
 
@@ -137,6 +137,20 @@ app.get("/api/stats", auth, async (_, res) => {
             vendas[nome] = (vendas[nome] || 0) + qtd;
           }
         });
+      }
+    });
+
+    app.delete("/api/pedidos/:id", auth, async (req, res) => {
+      try {
+        const pedido = await Pedido.findByIdAndDelete(req.params.id);
+
+        if (!pedido) {
+          return res.status(404).json({ message: "Pedido não encontrado" });
+        }
+
+        res.json({ message: "Pedido deletado com sucesso" });
+      } catch (error) {
+        res.status(500).json({ message: "Erro ao deletar pedido" });
       }
     });
 
