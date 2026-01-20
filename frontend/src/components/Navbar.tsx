@@ -18,7 +18,7 @@ export default function Navbar({ cartCount, onToggle, isAberto }: NavbarProps) {
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Pizza className="text-orange-600 w-8 h-8" />
-            <span className="text-2xl font-black text-orange-600 tracking-tighter">BAIANINHA</span>
+            <span className="text-2xl font-black text-orange-600 tracking-tighter">PIZZARIA</span>
           </div>
           <div className="flex items-center gap-8 font-medium text-gray-600">
             <a href="#" className="hover:text-orange-600 hidden md:flex transition">Início</a>

@@ -318,7 +318,7 @@ export default function AdminPanel() {
             <LayoutDashboard className="text-white" size={24} />
           </div>
           <div>
-            <span className="text-lg font-black tracking-tight block text-slate-900">BAIANINHA</span>
+            <span className="text-lg font-black tracking-tight block text-slate-900">PIZZARIA</span>
             <span className="text-xs text-orange-600 font-bold uppercase tracking-widest">Admin Panel</span>
           </div>
         </div>

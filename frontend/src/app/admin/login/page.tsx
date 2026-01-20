@@ -70,9 +70,6 @@ export default function AdminLogin() {
           <h1 className="text-2xl font-black tracking-tight text-slate-900">
             Painel Administrativo
           </h1>
-          <p className="text-sm text-slate-500 font-medium">
-            Pizzaria Baianinha
-          </p>
         </div>
 
         {/* Form */}

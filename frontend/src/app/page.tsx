@@ -645,14 +645,14 @@ export default function Home() {
       <footer id='sobre' className="bg-slate-900 text-white py-24 px-6">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2 mb-6"><Pizza className="text-orange-500 w-8 h-8" /><span className="text-3xl font-black tracking-tighter">BAIANINHA</span></div>
+            <div className="flex items-center gap-2 mb-6"><Pizza className="text-orange-500 w-8 h-8" /><span className="text-3xl font-black tracking-tighter">PIZZARIA</span></div>
             <p className="text-gray-400 max-w-sm leading-relaxed">Levando o melhor sabor para sua mesa desde 2010. Ingredientes selecionados e massa de fermentação lenta.</p>
           </div>
           <div><h4 className="font-bold mb-6">Links Rápidos</h4><ul className="space-y-4 text-gray-400"><li><a href="#" className="hover:text-orange-500 transition">Cardápio</a></li><li><a href="#" className="hover:text-orange-500 transition">Sobre Nós</a></li></ul></div>
-          <div><h4 className="font-bold mb-6">Contato</h4><ul className="space-y-4 text-gray-400"><li>(71) 9999-9999</li><li>contato@baianinha.com</li><li>Três Fronteiras, São Paulo</li></ul></div>
+          <div><h4 className="font-bold mb-6">Contato</h4><ul className="space-y-4 text-gray-400"><li>(71) 9999-9999</li><li>contato@pizzaria.com</li><li>Três Fronteiras, São Paulo</li></ul></div>
         </div>
         <div className="max-w-7xl mx-auto border-t border-white/10 mt-24 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-gray-500 text-sm">
-          <p>© 2026 Pizzaria Baianinha. Todos os direitos reservados.</p>
+          <p>© 2026 Pizzaria. Todos os direitos reservados.</p>
           <a href="/admin" className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg transition-colors text-gray-400 hover:text-white"><Lock size={14} /> Acesso Administrativo</a>
         </div>
       </footer>
