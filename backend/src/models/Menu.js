@@ -8,8 +8,10 @@ const MenuSchema = new mongoose.Schema({
   tipo: {
     type: String,
     enum: ["pizza", "bebida"],
-    required: true
-  }
+    required: true,
+  },
+  imagem: String,
+  imagemId: String,
 });
 
 module.exports = mongoose.model("Menu", MenuSchema);
