@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Utensils, ShoppingBag, Plus, Trash2, Edit, CheckCircle, Clock, XCircle, BarChart3, TrendingUp, DollarSign, Package, LogOut, Home, AlertCircle, ChevronRight, X, Tags,
-  QrCode
+  QrCode,
+  ImageIcon,
+  Upload
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -21,7 +23,10 @@ interface IProduto {
   descricao: string;
   categoria: string;
   tipo: 'pizza' | 'bebida';
+  imagem?: string;
+  imagemFile?: File;
 }
+
 
 interface PedidoItem {
   id?: string;
@@ -201,23 +206,29 @@ export default function AdminPanel() {
     if (!editingItem) return;
 
     const isEdit = Boolean(editingItem.id);
-    const payload = {
-      nome: editingItem.nome,
-      preco: editingItem.preco,
-      descricao: editingItem.descricao || "",
-      categoria: editingItem.categoria || categorias[0]?.nome,
-      tipo: editingItem.tipo || "pizza",
-    };
 
-    const method = isEdit ? "PUT" : "POST";
+    const formData = new FormData();
+    formData.append("nome", editingItem.nome || "");
+    formData.append("preco", String(editingItem.preco || 0));
+    formData.append("descricao", editingItem.descricao || "");
+    formData.append("categoria", editingItem.categoria || categorias[0]?.nome);
+    formData.append("tipo", editingItem.tipo || "pizza");
+
+    if (editingItem.imagemFile) {
+      formData.append("imagem", editingItem.imagemFile); // 👈 nome TEM que ser "imagem"
+    }
+
     const url = isEdit
-      ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu/${editingItem.id}`
-      : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'}/api/menu`;
+      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"}/api/menu/${editingItem.id}`
+      : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"}/api/menu`;
 
     await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("admin-token")}` },
-      body: JSON.stringify(payload),
+      method: isEdit ? "PUT" : "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("admin-token")}`,
+        // ⚠️ NÃO definir Content-Type
+      },
+      body: formData,
     });
 
     setIsModalOpen(false);
@@ -307,6 +318,33 @@ export default function AdminPanel() {
     { id: "categorias", label: "Categorias", icon: Tags },
     { id: "relatorios", label: "Relatórios", icon: BarChart3 },
   ];
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEditingItem(prev => ({
+        ...prev,
+        imagem: reader.result as string,
+        imagemFile: file, // 🔥 guarda o File
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setEditingItem(prev => ({
+      ...prev,
+      imagem: "",
+      imagemFile: undefined,
+    }));
+  };
 
   return (
     <div className="h-screen bg-slate-50 flex flex-col md:flex-row overflow-hidden font-sans text-slate-900">
@@ -492,38 +530,59 @@ export default function AdminPanel() {
             CARDÁPIO
         ============================ */}
         {activeTab === "cardapio" && (
-          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="bg-white rounded-3xl border border-orange-50 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-50 bg-slate-50/50">
-                    <th className="px-8 py-5 font-black text-slate-400 uppercase text-xs tracking-widest text-left">Item</th>
-                    <th className="px-8 py-5 font-black text-slate-400 uppercase text-xs tracking-widest text-left">Preço</th>
-                    <th className="px-8 py-5 font-black text-slate-400 uppercase text-xs tracking-widest text-left">Categoria</th>
-                    <th className="px-8 py-5 font-black text-slate-400 uppercase text-xs tracking-widest text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {menu.map((item) => (
-                    <tr key={item.id} className="border-b border-slate-50 hover:bg-orange-50/30 transition duration-300 group">
-                      <td className="px-8 py-6">
-                        <p className="font-black text-slate-900 group-hover:text-orange-600 transition">{item.nome}</p>
-                        <p className="text-sm text-slate-400 font-medium">{item.descricao}</p>
-                      </td>
-                      <td className="px-8 py-6 font-black text-slate-900">R$ {item.preco}</td>
-                      <td className="px-8 py-6 ">
-                        <span className="px-4 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-black uppercase tracking-tighter">{item.categoria}</span>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="p-2.5 text-slate-300 hover:text-orange-600 hover:bg-white rounded-xl transition shadow-sm"><Edit size={18} /></button>
-                          <button onClick={() => handleDeleteItem(item.id)} className="p-2.5 text-slate-300 hover:text-red-600 hover:bg-white rounded-xl transition shadow-sm"><Trash2 size={18} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
+
+            {/* Grid de Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {menu.map((item) => (
+                <motion.div
+                  key={item.id}
+                  variants={itemVariants}
+                  className="bg-white rounded-4xl border border-orange-50 shadow-sm overflow-hidden group hover:shadow-xl hover:shadow-orange-100/50 transition-all duration-500 flex flex-col"
+                >
+                  {/* Imagem do Card */}
+                  <div className="relative h-48 overflow-hidden bg-slate-100">
+                    {item.imagem ? (
+                      <img src={item.imagem} alt={item.nome} className="w-full h-full object-cover group-hover:scale-110 transition duration-700" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300">
+                        <ImageIcon size={48} />
+                      </div>
+                    )}
+                    <div className="absolute top-4 left-4">
+                      <span className="px-3 py-1 bg-white/90 backdrop-blur-md text-orange-600 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm border border-orange-50">
+                        {item.categoria}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Conteúdo do Card */}
+                  <div className="p-6 flex-1 flex flex-col">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-black text-slate-900 text-lg leading-tight group-hover:text-orange-600 transition">{item.nome}</h4>
+                    </div>
+                    <p className="text-slate-400 text-sm font-medium line-clamp-2 mb-4 flex-1">{item.descricao}</p>
+
+                    <div className="flex justify-between items-center pt-4 border-t border-slate-50">
+                      <span className="text-xl font-black text-slate-900 tracking-tighter">R$ {item.preco.toFixed(2)}</span>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => { setEditingItem(item); setIsModalOpen(true); }}
+                          className="p-2 text-slate-300 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </motion.div>
         )}
@@ -671,9 +730,47 @@ export default function AdminPanel() {
               <button onClick={() => { setIsModalOpen(false); setEditingItem(null); }} className="absolute top-6 right-6 text-slate-300 hover:text-red-500 p-2 bg-slate-50 rounded-full transition"><X size={20} /></button>
               <h2 className="text-3xl font-black mb-8 text-slate-900 tracking-tighter">{editingItem?.id ? "Editar Item" : "Novo Item"}</h2>
               <form onSubmit={handleSaveItem} className="space-y-6">
+
                 <div>
                   <label className="block mb-2 font-black text-slate-400 text-xs uppercase tracking-widest">Nome do Produto</label>
                   <input type="text" value={editingItem?.nome || ""} onChange={e => setEditingItem(prev => ({ ...prev, nome: e.target.value }))} className="w-full p-4 border border-slate-100 rounded-2xl bg-slate-50 text-slate-900 font-bold focus:border-orange-600 outline-none transition" placeholder="Ex: Pizza de Calabresa" required />
+                </div>
+                {/* Seção de Upload de Imagem */}
+                <div className="flex flex-col items-center justify-center mb-6">
+                  <label className="block mb-2 font-black text-slate-400 text-xs uppercase tracking-widest w-full">
+                    Imagem do Produto
+                  </label>
+                  <div className="relative group w-full h-15   bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 hover:border-orange-600 transition-all overflow-hidden flex items-center justify-center">
+                    {editingItem?.imagem ? (
+                      <>
+                        <img src={editingItem.imagem} alt="Preview" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                          <div className="flex flex-col items-center text-white">
+                            <Upload size={32} />
+                            <span className="text-[10px] font-black uppercase mt-1">Trocar</span>
+                          </div>
+                          <button
+                            onClick={handleRemoveImage}
+                            className="flex flex-col items-center text-red-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={32} />
+                            <span className="text-[10px] font-black uppercase mt-1">Remover</span>
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center text-slate-400 group-hover:text-orange-600 transition-colors">
+                        <ImageIcon size={15} className="mb-2" />
+                        <span className="text-xs font-bold uppercase tracking-widest">Clique para enviar</span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
